@@ -10,6 +10,7 @@
 <meta name="application-name" content="Ma">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232a1b0f'/><text x='50' y='50' font-family='serif' font-size='62' fill='%23e8a33d' text-anchor='middle' dominant-baseline='central'>&#38291;</text></svg>">
 <meta name="theme-color" content="#2a1b0f">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Ma</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232a1b0f'/><text x='50' y='50' font-family='serif' font-size='62' fill='%23e8a33d' text-anchor='middle' dominant-baseline='central'>&#38291;</text></svg>">
 <style>
@@ -961,6 +962,12 @@ document.getElementById('wipe').onclick=()=>{
   };
 };
 document.getElementById('dlgNo').onclick=()=>document.getElementById('confirmDlg').close();
+
+/* PWA: Service Worker registrieren (macht die App offline-fähig + installierbar).
+   Ändert nichts an der App-Logik oder deinen Daten. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+}
 </script>
 </body>
 </html>

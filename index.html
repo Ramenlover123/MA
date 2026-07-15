@@ -160,6 +160,11 @@
   .d{position:absolute;left:50%;top:16px;width:7px;height:7px;border-radius:50%;
     background:var(--amber);transform:translateX(-3.5px);z-index:2}
   .d.hollow{background:var(--coffee);border:1px solid var(--line)}
+  .d.drink{background:var(--coffee);border:1.5px solid var(--amber);
+    width:8px;height:8px;transform:translateX(-4px);top:15px}
+  .d.drink::after{content:"";position:absolute;left:50%;top:50%;
+    width:3px;height:3px;border-radius:50%;background:var(--amber);
+    transform:translate(-50%,-50%)}
   .d.ring{background:var(--coffee);border:1.5px solid var(--amber-dim);
     width:9px;height:9px;transform:translateX(-4.5px);top:15px}
   .d.hot{background:var(--tomato);width:9px;height:9px;transform:translateX(-4.5px);
@@ -278,10 +283,18 @@
     font-size:13.5px;font-weight:500;z-index:60;opacity:0;pointer-events:none;
     transition:opacity .22s;max-width:80%}
   .toast.on{opacity:1}
+  .toast .undo{margin-left:14px;color:var(--amber);font-weight:600;
+    pointer-events:auto;cursor:pointer;text-decoration:underline}
+  .toast.on{pointer-events:auto}
+  /* Wischen zum Löschen im Verlauf */
+  .n{transition:transform .18s ease, opacity .18s ease}
+  .n.wiping{transition:none}
+  .n.gone{transform:translateX(-110%);opacity:0}
 
   dialog{border:0;background:var(--coffee-lit);color:var(--on);border-radius:var(--r);
     padding:24px;max-width:380px;width:calc(100% - 44px)}
   dialog::backdrop{background:var(--scrim-hard)}
+  dialog.soft{cursor:pointer}
   dialog h3{margin:0 0 10px;font-size:15px;font-weight:500}
   dialog p{margin:0 0 20px;font-size:15px;color:var(--on-soft);line-height:1.65;
     white-space:pre-wrap}
@@ -301,6 +314,7 @@
     </div>
     <div class="acts">
       <button class="pill" id="mealToggle" aria-pressed="false">Essen dabei</button>
+      <button class="pill" id="drinkToggle" aria-pressed="false">Getränk</button>
       <button class="pill" id="timeBtn">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         <span id="timeLabel">Jetzt</span>
@@ -431,7 +445,7 @@ const SYMPTOMS=[
 ];
 const SLEEP=['gut','okay','schlecht','kaum'];
 
-let db=load(), pendingPhoto=null, isMeal=false;
+let db=load(), pendingPhoto=null, isMeal=false, isDrink=false;
 
 function load(){
   try{
@@ -445,16 +459,38 @@ function load(){
   return {entries:[], daily:{}, words:'', dismissed:[], marks:[]};
 }
 function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify(db)); }
-  catch(e){ toast('Speicher voll — sichern und alte Fotos löschen'); }
+  let s;
+  try{ s=JSON.stringify(db); localStorage.setItem(KEY, s); }
+  catch(e){ toast('Speicher voll — sichern und alte Fotos löschen'); return; }
+  // Ein leiser, einmaliger Hinweis, bevor es wirklich eng wird (~3,6 von ~5 MB).
+  // Keine Anzeige, keine Zahl — nur der eine Satz, wenn nötig.
+  const nearFull=s.length>3.6e6;
+  if(nearFull && !db.spaceWarned){
+    db.spaceWarned=true;
+    try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
+    toast('Der Speicher wird knapp — vielleicht bald sichern');
+  } else if(!nearFull && db.spaceWarned){
+    db.spaceWarned=false; // wieder Luft: Hinweis darf erneut kommen
+    try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
+  }
 }
 const pad=n=>String(n).padStart(2,'0');
 const dayKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const hhmm=ts=>{const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');
-  setTimeout(()=>t.classList.remove('on'),1900)}
+let toastTimer=null;
+function toast(m,undo){const t=document.getElementById('toast');
+  clearTimeout(toastTimer);
+  t.textContent=m;
+  if(undo){
+    const a=document.createElement('span'); a.className='undo'; a.textContent='Rückgängig';
+    a.onclick=()=>{ t.classList.remove('on'); clearTimeout(toastTimer); undo(); };
+    t.appendChild(a);
+  }
+  t.classList.add('on');
+  toastTimer=setTimeout(()=>t.classList.remove('on'),undo?5000:1900);
+}
 
 /* Tabs */
 document.querySelectorAll('.tab').forEach(b=>{
@@ -474,22 +510,35 @@ document.getElementById('today').textContent=
   new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
 
 const mt=document.getElementById('mealToggle');
-mt.onclick=()=>{ isMeal=!isMeal; mt.setAttribute('aria-pressed',isMeal) };
+const dt2=document.getElementById('drinkToggle');
+// Essen und Getränk schließen sich gegenseitig aus.
+mt.onclick=()=>{ isMeal=!isMeal; if(isMeal){isDrink=false;dt2.setAttribute('aria-pressed','false');}
+  mt.setAttribute('aria-pressed',isMeal) };
+dt2.onclick=()=>{ isDrink=!isDrink; if(isDrink){isMeal=false;mt.setAttribute('aria-pressed','false');}
+  dt2.setAttribute('aria-pressed',isDrink) };
 
 /* Foto */
 document.getElementById('photoBtn').onclick=()=>document.getElementById('photoInput').click();
 document.getElementById('photoInput').onchange=e=>{
   const f=e.target.files[0]; if(!f) return;
+  const prev=document.getElementById('photoPreview');
+  prev.innerHTML='<p class="hint" style="margin-top:12px">Bild wird verarbeitet …</p>';
   const img=new Image(), rd=new FileReader();
-  rd.onload=()=>{ img.onload=()=>{
-    const max=900, s=Math.min(1,max/Math.max(img.width,img.height));
-    const c=document.createElement('canvas');
-    c.width=img.width*s; c.height=img.height*s;
-    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-    pendingPhoto=c.toDataURL('image/jpeg',.72);
-    document.getElementById('photoPreview').innerHTML=
-      `<img src="${pendingPhoto}" style="max-width:140px;border-radius:10px;margin-top:12px;display:block">`;
-  }; img.src=rd.result; };
+  const fail=()=>{ prev.innerHTML=''; pendingPhoto=null; toast('Bild ließ sich nicht laden'); };
+  rd.onerror=fail;
+  rd.onload=()=>{
+    img.onerror=fail;
+    img.onload=()=>{
+      const max=900, s=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=img.width*s; c.height=img.height*s;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      pendingPhoto=c.toDataURL('image/jpeg',.72);
+      prev.innerHTML=
+        `<img src="${pendingPhoto}" style="max-width:140px;border-radius:10px;margin-top:12px;display:block">`;
+    };
+    img.src=rd.result;
+  };
   rd.readAsDataURL(f);
 };
 
@@ -523,20 +572,30 @@ function entryTs(){
   if(d.getTime()>Date.now()+6e4) d.setDate(d.getDate()-1);
   return d.getTime();
 }
+// Benennt einen Zeitstempel, falls er auf einen anderen Tag als heute fällt —
+// damit eine Rückdatierung nie stillschweigend passiert.
+function tsLabel(ts){
+  const k=dayKey(new Date(ts)), today=dayKey(new Date());
+  if(k===today) return hhmm(ts);
+  const yest=dayKey(new Date(Date.now()-864e5));
+  const day=(k===yest)?'gestern':new Date(ts).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
+  return day+' '+hhmm(ts);
+}
 
 /* Eintrag */
 document.getElementById('saveBtn').onclick=()=>{
   const t=document.getElementById('text').value.trim();
   if(!t && !pendingPhoto){ toast('Nichts drin'); return; }
   const ts=entryTs();
-  db.entries.push({id:Date.now(),ts,type:'entry',text:t,photo:pendingPhoto,meal:isMeal});
+  db.entries.push({id:Date.now(),ts,type:'entry',text:t,photo:pendingPhoto,meal:isMeal,drink:isDrink});
   save();
   document.getElementById('text').value='';
   document.getElementById('photoPreview').innerHTML='';
-  pendingPhoto=null; isMeal=false; mt.setAttribute('aria-pressed','false');
-  const late=customTime;
+  pendingPhoto=null; isMeal=false; isDrink=false;
+  mt.setAttribute('aria-pressed','false'); dt2.setAttribute('aria-pressed','false');
+  const wasCustom=customTime;
   resetTime();
-  toast(late?'Gespeichert — '+late:'Gespeichert');
+  toast(wasCustom?'Gespeichert — '+tsLabel(ts):'Gespeichert');
 };
 
 /* Jetzt-Knopf */
@@ -549,6 +608,7 @@ document.getElementById('sosBtn').onclick=()=>{
     document.getElementById('dlgText').textContent=db.words;
     document.getElementById('dlgYes').hidden=true;
     document.getElementById('dlgNo').textContent='Schließen';
+    d.classList.add('soft'); // tippen irgendwo schließt — kein Zielen mitten in der Attacke
     d.showModal();
   } else toast('Festgehalten.');
   renderFollowup();
@@ -559,7 +619,7 @@ document.querySelectorAll('[data-moment]').forEach(b=>{
   b.onclick=()=>{
     const ts=entryTs();
     db.entries.push({id:Date.now(),ts,type:'moment',what:b.dataset.moment});
-    save(); toast(b.dataset.moment+' — '+hhmm(ts));
+    save(); toast(b.dataset.moment+' — '+tsLabel(ts));
     if(customTime) resetTime();
   };
 });
@@ -714,6 +774,9 @@ document.getElementById('periodBtn').onclick=()=>{
     db.entries.push({id:Date.now(),ts:Date.now(),type:'moment',what:'Periode'});
     save(); toast('Periode — heute');
   }
+  // Periode ist tagesbasiert und nutzt die Zeit-Pille nicht — also zurücksetzen,
+  // damit eine gesetzte Zeit nicht heimlich am nächsten Eintrag klebt.
+  if(customTime) resetTime();
 };
 
 /* Verlauf — Zeitleiste */
@@ -742,7 +805,9 @@ function renderHistory(){
     let lastMeal=null;
     list.forEach(e=>{
       if(e.type==='entry'&&e.meal){
-        if(lastMeal && (e.ts-lastMeal)/36e5>7.5){
+        // Lücke nur innerhalb eines Tages — wie im Monat. Nacht zählt nicht.
+        if(lastMeal && (e.ts-lastMeal)/36e5>7.5
+           && dayKey(new Date(lastMeal))===dayKey(new Date(e.ts))){
           const h=Math.round((e.ts-lastMeal)/36e5);
           out+=`<div class="gap"><span>${h} Stunden</span></div>`;
         }
@@ -756,6 +821,9 @@ function renderHistory(){
         dot='d ring'; cls='x ev'; body=esc(e.what);
       } else if(e.meal){
         body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'')+'<small>Essen</small>';
+      } else if(e.drink){
+        dot='d drink';
+        body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'')+'<small>Getränk</small>';
       } else {
         dot='d hollow'; cls='x q';
         body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'');
@@ -775,14 +843,63 @@ function renderHistory(){
   host.innerHTML=out;
 
   host.querySelectorAll('.n').forEach(el=>{
+    const id=+el.dataset.id;
+    let x0=null,y0=null,dir=null,moved=false;
+
+    el.addEventListener('touchstart',ev=>{
+      x0=ev.touches[0].clientX; y0=ev.touches[0].clientY; dir=null; moved=false;
+      el.classList.add('wiping');
+    },{passive:true});
+
+    el.addEventListener('touchmove',ev=>{
+      if(x0===null) return;
+      const dx=ev.touches[0].clientX-x0, dy=ev.touches[0].clientY-y0;
+      // Richtung einmal festlegen: waagerecht = wischen, senkrecht = scrollen lassen
+      if(dir===null && (Math.abs(dx)>8||Math.abs(dy)>8)) dir=Math.abs(dx)>Math.abs(dy)?'x':'y';
+      if(dir!=='x') return;
+      moved=true;
+      const d=Math.min(0,dx); // nur nach links
+      el.style.transform=`translateX(${d}px)`;
+      el.style.opacity=String(Math.max(.35,1+d/260));
+    },{passive:true});
+
+    el.addEventListener('touchend',ev=>{
+      el.classList.remove('wiping');
+      const dx=(ev.changedTouches[0].clientX)-(x0||0);
+      x0=null;
+      if(dir==='x' && dx<-70){ removeEntry(id,el); }
+      else { el.style.transform=''; el.style.opacity=''; }
+    },{passive:true});
+
+    // Tap (kein Wisch) = markieren, wie bisher
     el.onclick=()=>{
-      const id=+el.dataset.id, i=db.marks.indexOf(id);
+      if(moved) return;
+      const i=db.marks.indexOf(id);
       if(i<0){db.marks.push(id);el.classList.add('marked');toast('Markiert')}
       else{db.marks.splice(i,1);el.classList.remove('marked')}
       save();
     };
   });
   setTimeout(()=>window.scrollTo(0,document.body.scrollHeight),0);
+}
+
+/* Einzelnen Eintrag entfernen — mit kurzer Rückgängig-Chance, kein Dialog */
+function removeEntry(id,el){
+  const idx=db.entries.findIndex(e=>e.id===id);
+  if(idx<0) return;
+  const backup=db.entries[idx];
+  const mi=db.marks.indexOf(id);
+  el.classList.add('gone');
+  db.entries.splice(idx,1);
+  if(mi>=0) db.marks.splice(mi,1);
+  save();
+  setTimeout(()=>{ if(!document.getElementById('s-verlauf').hidden) renderHistory(); },200);
+  toast('Entfernt', ()=>{
+    db.entries.splice(Math.min(idx,db.entries.length),0,backup);
+    if(mi>=0) db.marks.push(id);
+    save();
+    if(!document.getElementById('s-verlauf').hidden) renderHistory();
+  });
 }
 
 /* Monatsübersicht */
@@ -931,7 +1048,7 @@ document.getElementById('exportTxt').onclick=()=>{
       const m=db.marks.includes(e.id)?' *':'';
       if(e.type==='sos') lines.push(`${hhmm(e.ts)}  [Jetzt]${e.note?' — '+e.note:''}${m}`);
       else if(e.type==='moment') lines.push(`${hhmm(e.ts)}  [${e.what}]${m}`);
-      else lines.push(`${hhmm(e.ts)}  ${e.meal?'[Essen] ':''}${e.text||''}${e.photo?' [Foto]':''}${m}`);
+      else lines.push(`${hhmm(e.ts)}  ${e.meal?'[Essen] ':e.drink?'[Getränk] ':''}${e.text||''}${e.photo?' [Foto]':''}${m}`);
     });
     const d=db.daily[k];
     if(d){
@@ -952,6 +1069,7 @@ document.getElementById('wipe').onclick=()=>{
   document.getElementById('dlgYes').hidden=false;
   document.getElementById('dlgYes').textContent='Löschen';
   document.getElementById('dlgNo').textContent='Abbrechen';
+  d.classList.remove('soft'); // Löschen bleibt bewusst — kein Tippen-schließt
   d.showModal();
   document.getElementById('dlgYes').onclick=()=>{
     db={entries:[],daily:{},words:'',dismissed:[],marks:[]};
@@ -961,7 +1079,17 @@ document.getElementById('wipe').onclick=()=>{
     timeCards(); toast('Gelöscht');
   };
 };
-document.getElementById('dlgNo').onclick=()=>document.getElementById('confirmDlg').close();
+document.getElementById('dlgNo').onclick=()=>{
+  const d=document.getElementById('confirmDlg'); d.classList.remove('soft'); d.close();
+};
+// Im „Sätze"-Modus (.soft): tippen irgendwo im Dialog schließt ihn — kein Zielen nötig.
+document.getElementById('confirmDlg').addEventListener('click',ev=>{
+  const d=document.getElementById('confirmDlg');
+  if(!d.classList.contains('soft')) return;
+  // Klicks auf die Schließen-Zeile laufen eh über den Button; jeder andere Tap schließt auch.
+  if(ev.target.id==='dlgYes') return;
+  d.classList.remove('soft'); d.close();
+});
 
 /* PWA: Service Worker registrieren (macht die App offline-fähig + installierbar).
    Ändert nichts an der App-Logik oder deinen Daten. */

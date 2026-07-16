@@ -7,7 +7,7 @@
    (v1 -> v2 ...). Dann holt sich das Handy beim nächsten Öffnen mit
    Internet die neue Version. */
 
-const CACHE = 'ma-v6';
+const CACHE = 'ma-v7';
 
 const ASSETS = [
   './',

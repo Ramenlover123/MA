@@ -309,6 +309,17 @@
   dialog h3{margin:0 0 10px;font-size:15px;font-weight:500}
   dialog p{margin:0 0 20px;font-size:15px;color:var(--on-soft);line-height:1.65;
     white-space:pre-wrap}
+  /* Bearbeiten-Fenster */
+  #editDlg #edText{width:100%;background:none;border:1px solid var(--edge-n);
+    border-radius:12px;color:var(--on);font:inherit;font-size:16px;line-height:1.5;
+    min-height:74px;resize:none;outline:0;padding:12px}
+  #editDlg #edText::placeholder{color:var(--on-ghost)}
+  .edrow{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  .edlbl{font-size:12.5px;color:var(--on-faint);margin-right:4px}
+  .edacts{display:flex;gap:8px;align-items:center;margin-top:22px;flex-wrap:wrap}
+  .edspace{flex:1}
+  #editDlg [hidden]{display:none}
+  #edMark[aria-pressed="true"]{background:var(--fill-on);border-color:var(--edge-on);color:var(--amber)}
 
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
   :focus-visible{outline:2px solid var(--amber);outline-offset:2px}
@@ -462,6 +473,27 @@
   <div style="display:flex;gap:10px;justify-content:flex-end">
     <button class="m" id="dlgNo">Abbrechen</button>
     <button class="m danger" id="dlgYes">Löschen</button>
+  </div>
+</dialog>
+
+<dialog id="editDlg">
+  <h3 id="edTitle">Eintrag</h3>
+  <textarea id="edText"></textarea>
+  <div class="edrow" id="edTypeRow">
+    <button class="pill" data-etype="meal">Essen</button>
+    <button class="pill" data-etype="drink">Getränk</button>
+    <button class="pill" data-etype="thought">Gedanke</button>
+  </div>
+  <div class="edrow">
+    <span class="edlbl">Zeit</span>
+    <input type="time" id="edTime" class="timefield">
+  </div>
+  <div class="edacts">
+    <button class="m" id="edMark">Markieren</button>
+    <button class="m danger" id="edDelete">Löschen</button>
+    <span class="edspace"></span>
+    <button class="m" id="edCancel">Abbrechen</button>
+    <button class="pill save" id="edSave">Speichern</button>
   </div>
 </dialog>
 
@@ -935,14 +967,8 @@ function renderHistory(){
       else { el.style.transform=''; el.style.opacity=''; }
     },{passive:true});
 
-    // Tap (kein Wisch) = markieren, wie bisher
-    el.onclick=()=>{
-      if(moved) return;
-      const i=db.marks.indexOf(id);
-      if(i<0){db.marks.push(id);el.classList.add('marked');toast('Markiert')}
-      else{db.marks.splice(i,1);el.classList.remove('marked')}
-      save();
-    };
+    // Tap (kein Wisch) = bearbeiten
+    el.onclick=()=>{ if(moved) return; openEdit(id); };
   });
   setTimeout(()=>window.scrollTo(0,document.body.scrollHeight),0);
 }
@@ -965,6 +991,71 @@ function removeEntry(id,el){
     if(!document.getElementById('s-verlauf').hidden) renderHistory();
   });
 }
+
+/* Eintrag bearbeiten */
+let editId=null, edType=null, edMarked=false;
+function openEdit(id){
+  const e=db.entries.find(x=>x.id===id);
+  if(!e) return;
+  editId=id;
+  const text=document.getElementById('edText');
+  const typeRow=document.getElementById('edTypeRow');
+  if(e.type==='entry'){
+    document.getElementById('edTitle').textContent='Eintrag';
+    text.hidden=false; text.placeholder='Was gegessen, ein Gedanke, beides.'; text.value=e.text||'';
+    typeRow.hidden=false;
+    edType=e.meal?'meal':(e.drink?'drink':'thought');
+  } else if(e.type==='sos'){
+    document.getElementById('edTitle').textContent='今';
+    text.hidden=false; text.placeholder='Was war davor los?'; text.value=e.note||'';
+    typeRow.hidden=true; edType=null;
+  } else {
+    document.getElementById('edTitle').textContent=e.what;
+    text.hidden=true; typeRow.hidden=true; edType=null;
+  }
+  typeRow.querySelectorAll('[data-etype]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.etype===edType));
+  document.getElementById('edTime').value=hhmm(e.ts);
+  edMarked=db.marks.includes(id);
+  const mk=document.getElementById('edMark');
+  mk.setAttribute('aria-pressed',edMarked); mk.textContent=edMarked?'Markiert':'Markieren';
+  document.getElementById('editDlg').showModal();
+}
+document.querySelectorAll('#edTypeRow [data-etype]').forEach(b=>{
+  b.onclick=()=>{ edType=b.dataset.etype;
+    document.querySelectorAll('#edTypeRow [data-etype]').forEach(x=>x.setAttribute('aria-pressed',x===b)); };
+});
+document.getElementById('edMark').onclick=()=>{
+  edMarked=!edMarked;
+  const mk=document.getElementById('edMark');
+  mk.setAttribute('aria-pressed',edMarked); mk.textContent=edMarked?'Markiert':'Markieren';
+};
+document.getElementById('edCancel').onclick=()=>document.getElementById('editDlg').close();
+document.getElementById('edDelete').onclick=()=>{
+  const id=editId; document.getElementById('editDlg').close();
+  const el=document.querySelector('.n[data-id="'+id+'"]');
+  if(el) removeEntry(id,el);
+};
+document.getElementById('edSave').onclick=()=>{
+  const e=db.entries.find(x=>x.id===editId);
+  if(!e){ document.getElementById('editDlg').close(); return; }
+  const text=document.getElementById('edText').value.trim();
+  if(e.type==='entry'){
+    e.text=text;
+    e.meal=edType==='meal'; e.drink=edType==='drink';
+    if(!e.meal) delete e.fullness; // Völlegefühl nur bei Essen
+  } else if(e.type==='sos'){
+    if(text) e.note=text; else delete e.note;
+  }
+  const tv=document.getElementById('edTime').value;
+  if(tv){ const [h,m]=tv.split(':').map(Number); const d=new Date(e.ts); d.setHours(h,m,0,0); e.ts=d.getTime(); }
+  const mi=db.marks.indexOf(editId);
+  if(edMarked && mi<0) db.marks.push(editId);
+  if(!edMarked && mi>=0) db.marks.splice(mi,1);
+  save();
+  document.getElementById('editDlg').close();
+  renderHistory();
+  toast('Gespeichert');
+};
 
 /* Monatsübersicht */
 function renderReport(){

@@ -9,64 +9,67 @@
 <meta name="apple-mobile-web-app-title" content="Ma">
 <meta name="application-name" content="Ma">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232a1b0f'/><text x='50' y='50' font-family='serif' font-size='62' fill='%23e8a33d' text-anchor='middle' dominant-baseline='central'>&#38291;</text></svg>">
-<meta name="theme-color" content="#2a1b0f">
+<meta name="theme-color" content="#f4ede0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1e1c19" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Ma</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232a1b0f'/><text x='50' y='50' font-family='serif' font-size='62' fill='%23e8a33d' text-anchor='middle' dominant-baseline='central'>&#38291;</text></svg>">
 <style>
   :root{
-    --coffee:#faf6ee;
-    --coffee-lit:#f2ebdd;
-    --line:#ded2bb;
-    --on:#2a1b0f;
-    --on-soft:#6f5c45;
-    --on-faint:#8f7c60;
-    --on-ghost:#95836a;
-    --amber:#96631a;
-    --amber-dim:#8f6524;
-    --tomato:#c04a30;
-    --tomato-lit:#a83a22;
-    --edge:rgba(168,112,28,.3);
-    --edge-on:rgba(168,112,28,.65);
-    --edge-n:rgba(42,27,15,.16);
-    --edge-f:rgba(42,27,15,.1);
-    --edge-t:rgba(192,74,48,.45);
-    --fill-on:rgba(168,112,28,.14);
-    --fill-soft:rgba(168,112,28,.06);
-    --fill-f:rgba(42,27,15,.05);
-    --fill-t:rgba(192,74,48,.09);
-    --glow-t:rgba(192,74,48,.16);
-    --shadow:rgba(42,27,15,.2);
-    --scrim:rgba(42,27,15,.32);
-    --scrim-hard:rgba(42,27,15,.55);
+    /* Hell — warmer Sand, ein Terracotta-Akzent */
+    --coffee:#f4ede0;
+    --coffee-lit:#ebe1d0;
+    --line:#dccbb2;
+    --on:#33291f;
+    --on-soft:#6a5b48;
+    --on-faint:#9a8a72;
+    --on-ghost:#b0a187;
+    --amber:#b05d33;
+    --amber-dim:#985029;
+    --tomato:#b05d33;
+    --tomato-lit:#9a4d28;
+    --edge:rgba(176,93,51,.3);
+    --edge-on:rgba(176,93,51,.6);
+    --edge-n:rgba(51,41,31,.16);
+    --edge-f:rgba(51,41,31,.1);
+    --edge-t:rgba(176,93,51,.45);
+    --fill-on:rgba(176,93,51,.12);
+    --fill-soft:rgba(176,93,51,.06);
+    --fill-f:rgba(51,41,31,.05);
+    --fill-t:rgba(176,93,51,.1);
+    --glow-t:rgba(176,93,51,.18);
+    --shadow:rgba(51,35,20,.2);
+    --scrim:rgba(40,30,20,.32);
+    --scrim-hard:rgba(40,30,20,.55);
     --r:14px;
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --coffee:#2a1b0f;
-      --coffee-lit:#3a2718;
-      --line:#4a3826;
-      --on:#ede2d0;
-      --on-soft:#a8977c;
-      --on-faint:#7a6547;
-      --on-ghost:#7d6a4e;
-      --amber:#e8a33d;
-      --amber-dim:#c98a2e;
-      --tomato:#c04a30;
-      --tomato-lit:#e08a72;
-      --edge:rgba(232,163,61,.22);
-      --edge-on:rgba(232,163,61,.5);
-      --edge-n:rgba(237,226,208,.14);
-      --edge-f:rgba(237,226,208,.08);
-      --edge-t:rgba(192,74,48,.45);
-      --fill-on:rgba(232,163,61,.16);
-      --fill-soft:rgba(232,163,61,.07);
-      --fill-f:rgba(237,226,208,.05);
-      --fill-t:rgba(192,74,48,.1);
-      --glow-t:rgba(192,74,48,.16);
-      --shadow:rgba(0,0,0,.45);
-      --scrim:rgba(15,9,4,.5);
-      --scrim-hard:rgba(15,9,4,.78);
+      /* Dunkel — Tusche auf Papier: warme Nacht, Rot nur auf dem 間 */
+      --coffee:#1e1c19;
+      --coffee-lit:#292623;
+      --line:#38342f;
+      --on:#e9e4d9;
+      --on-soft:#a6a099;
+      --on-faint:#6f695f;
+      --on-ghost:#5c574f;
+      --amber:#e9e4d9;
+      --amber-dim:#a6a099;
+      --tomato:#d95c40;
+      --tomato-lit:#e88a70;
+      --edge:rgba(233,228,217,.18);
+      --edge-on:rgba(233,228,217,.5);
+      --edge-n:rgba(233,228,217,.14);
+      --edge-f:rgba(233,228,217,.08);
+      --edge-t:rgba(217,92,64,.45);
+      --fill-on:rgba(233,228,217,.08);
+      --fill-soft:rgba(233,228,217,.05);
+      --fill-f:rgba(233,228,217,.05);
+      --fill-t:rgba(217,92,64,.1);
+      --glow-t:rgba(217,92,64,.16);
+      --shadow:rgba(0,0,0,.5);
+      --scrim:rgba(12,10,8,.5);
+      --scrim-hard:rgba(12,10,8,.78);
     }
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -77,6 +80,9 @@
     padding-bottom:calc(74px + env(safe-area-inset-bottom));
     -webkit-font-smoothing:antialiased}
   .wrap{max-width:600px;margin:0 auto;padding:0}
+  /* Heute vertikal ausbalancieren — nicht alles oben stapeln */
+  #s-heute:not([hidden]){display:flex;flex-direction:column;justify-content:center;
+    min-height:calc(100vh - 96px);min-height:calc(100dvh - 96px)}
   section[hidden]{display:none}
 
   .top{padding:calc(env(safe-area-inset-top) + 26px) 22px 2px;
@@ -99,16 +105,19 @@
   .tab[aria-selected="true"]{color:var(--amber)}
 
   /* Heute — nur Schreibfläche */
-  .daydate{text-align:center;padding:calc(env(safe-area-inset-top) + 34px) 22px 0;
+  .daydate{text-align:center;padding:calc(env(safe-area-inset-top) + 8px) 22px 0;
     margin:0;font-family:ui-serif,Georgia,serif;font-size:23px;font-weight:400;
     color:var(--on);letter-spacing:-.2px}
-  .write{padding:26px 22px 0}
+  /* Karte um das Eintragen — Fläche statt Rahmen */
+  .card{margin:20px 16px 0;background:var(--coffee-lit);border-radius:20px;
+    padding:18px 18px 15px;box-shadow:0 2px 10px var(--shadow)}
+  .write{padding:0}
   .write textarea{width:100%;background:none;border:0;color:var(--on);font:inherit;
-    font-size:19px;font-weight:300;line-height:1.5;min-height:120px;resize:none;outline:0}
+    font-size:18px;font-weight:300;line-height:1.55;min-height:92px;resize:none;outline:0}
   .write textarea::placeholder{color:var(--on-ghost)}
   #photoPreview img{max-width:130px;border-radius:10px;margin-top:10px;display:block}
 
-  .acts{display:flex;gap:8px;padding:12px 22px 0;flex-wrap:wrap;align-items:center}
+  .acts{display:flex;gap:8px;padding:14px 0 0;flex-wrap:wrap;align-items:center}
   .pill{background:none;border:1px solid var(--edge);color:var(--on-soft);
     font:inherit;font-size:12.5px;padding:7px 13px;border-radius:20px;cursor:pointer;
     display:inline-flex;align-items:center;gap:6px;transition:.13s}
@@ -308,23 +317,25 @@
   <section id="s-heute">
     <p class="daydate" id="today"></p>
 
-    <div class="write">
-      <textarea id="text" placeholder="Was gegessen, ein Gedanke, beides."></textarea>
-      <div id="photoPreview"></div>
-    </div>
-    <div class="acts">
-      <button class="pill" id="mealToggle" aria-pressed="false">Essen dabei</button>
-      <button class="pill" id="drinkToggle" aria-pressed="false">Getränk</button>
-      <button class="pill" id="timeBtn">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        <span id="timeLabel">Jetzt</span>
-      </button>
-      <input type="time" id="timeInput" class="timefield" hidden>
-      <button class="pill" id="photoBtn">
-        <svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.2"/></svg>
-        Foto
-      </button>
-      <button class="pill save" id="saveBtn">Speichern</button>
+    <div class="card">
+      <div class="write">
+        <textarea id="text" placeholder="Was gegessen, ein Gedanke, beides."></textarea>
+        <div id="photoPreview"></div>
+      </div>
+      <div class="acts">
+        <button class="pill" id="mealToggle" aria-pressed="false">Essen dabei</button>
+        <button class="pill" id="drinkToggle" aria-pressed="false">Getränk</button>
+        <button class="pill" id="timeBtn">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span id="timeLabel">Jetzt</span>
+        </button>
+        <input type="time" id="timeInput" class="timefield" hidden>
+        <button class="pill" id="photoBtn">
+          <svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.2"/></svg>
+          Foto
+        </button>
+        <button class="pill save" id="saveBtn">Speichern</button>
+      </div>
     </div>
     <input type="file" id="photoInput" accept="image/*" hidden>
 
@@ -791,7 +802,8 @@ function renderHistory(){
   vis.slice().sort((a,b)=>a.ts-b.ts).forEach(e=>{
     const k=dayKey(new Date(e.ts)); (byDay[k]=byDay[k]||[]).push(e);
   });
-  const days=Object.keys(byDay).sort().reverse().slice(0,14).reverse();
+  // Neueste zuerst: Heute steht oben, ältere Tage darunter.
+  const days=Object.keys(byDay).sort().reverse().slice(0,14);
 
   let out='<div class="tl"><div class="spine"></div>';
   days.forEach(k=>{
@@ -880,7 +892,7 @@ function renderHistory(){
       save();
     };
   });
-  setTimeout(()=>window.scrollTo(0,document.body.scrollHeight),0);
+  setTimeout(()=>window.scrollTo(0,0),0);
 }
 
 /* Einzelnen Eintrag entfernen — mit kurzer Rückgängig-Chance, kein Dialog */

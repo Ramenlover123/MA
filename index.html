@@ -6,14 +6,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Ma">
-<meta name="application-name" content="Ma">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232a1b0f'/><text x='50' y='50' font-family='serif' font-size='62' fill='%23e8a33d' text-anchor='middle' dominant-baseline='central'>&#38291;</text></svg>">
+<meta name="apple-mobile-web-app-title" content="Ima">
+<meta name="application-name" content="Ima">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232a1b0f'/><text x='50' y='50' font-family='serif' font-size='62' fill='%23e8a33d' text-anchor='middle' dominant-baseline='central'>&#20170;</text></svg>">
 <meta name="theme-color" content="#faf6ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#2a1b0f" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Ma</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232a1b0f'/><text x='50' y='50' font-family='serif' font-size='62' fill='%23e8a33d' text-anchor='middle' dominant-baseline='central'>&#38291;</text></svg>">
+<title>Ima</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232a1b0f'/><text x='50' y='50' font-family='serif' font-size='62' fill='%23e8a33d' text-anchor='middle' dominant-baseline='central'>&#20170;</text></svg>">
 <style>
   :root{
     /* Braun — Original: Kaffee, Amber, Tomate */
@@ -88,7 +88,7 @@
   .top{padding:calc(env(safe-area-inset-top) + 26px) 22px 2px;
     font-size:12.5px;letter-spacing:.2px;color:var(--on-ghost)}
 
-  /* 間 als Knopf */
+  /* 今 als Knopf */
   .sos{position:fixed;right:18px;bottom:calc(96px + env(safe-area-inset-bottom));
     width:62px;height:62px;border-radius:50%;background:var(--tomato);border:0;
     color:#fff;font-family:ui-serif,Georgia,serif;font-size:30px;cursor:pointer;
@@ -191,6 +191,8 @@
   .gap span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     background:var(--coffee);padding:4px 10px;font-size:10px;color:var(--on-ghost);
     letter-spacing:.5px;white-space:nowrap}
+  .gap.mini{height:40px}
+  .gap.mini span{font-size:9px;opacity:.7;letter-spacing:.3px}
   .chips{text-align:center;padding:10px 22px 0;position:relative;z-index:3}
   .tag{display:inline-block;font-size:10.5px;padding:3px 9px;border-radius:20px;
     background:var(--edge-f);color:var(--on-faint);margin:0 3px 4px}
@@ -339,6 +341,17 @@
     </div>
     <input type="file" id="photoInput" accept="image/*" hidden>
 
+    <div class="group" id="fullCard" hidden>
+      <h2>Völlegef&uuml;hl</h2>
+      <div class="mr">
+        <button class="m" data-full="0">leicht</button>
+        <button class="m" data-full="1">angenehm</button>
+        <button class="m" data-full="2">voll</button>
+        <button class="m" data-full="3">&uuml;bervoll</button>
+        <button class="m" id="fullSkip" style="margin-left:auto">&uuml;berspringen</button>
+      </div>
+    </div>
+
     <div class="group">
       <h2>Jetzt eintragen</h2>
       <div class="mr">
@@ -389,9 +402,16 @@
   <section id="s-mehr" hidden>
     <div class="group" style="padding-top:34px">
       <h2>Deine S&auml;tze</h2>
-      <p class="hint">Was soll dastehen, wenn du 間 dr&uuml;ckst? Von dir, f&uuml;r dein sp&auml;teres Ich.</p>
+      <p class="hint">Was soll dastehen, wenn du 今 dr&uuml;ckst? Von dir, f&uuml;r dein sp&auml;teres Ich.</p>
       <textarea id="ownWords" placeholder="Noch leer."></textarea>
       <button class="m wide" id="wordsSave">Speichern</button>
+    </div>
+
+    <div class="group">
+      <h2>Ideen</h2>
+      <p class="hint">Was dir zur App einf&auml;llt &#8212; f&uuml;r sp&auml;ter. Bleibt auf dem Ger&auml;t und steht im Export.</p>
+      <textarea id="ideas" placeholder="Noch leer."></textarea>
+      <button class="m wide" id="ideasSave">Speichern</button>
     </div>
 
     <div class="group">
@@ -423,7 +443,7 @@
 
 <div id="followup-slot"></div>
 
-<button class="sos" id="sosBtn" aria-label="Jetzt festhalten">&#38291;</button>
+<button class="sos" id="sosBtn" aria-label="Jetzt festhalten">&#20170;</button>
 
 <nav>
   <div class="tabs" role="tablist">
@@ -455,6 +475,7 @@ const SYMPTOMS=[
   {k:'akt',    label:'Aktivität',     steps:['ruhig','normal','viel','anstrengend']}
 ];
 const SLEEP=['gut','okay','schlecht','kaum'];
+const FULL=['leicht','angenehm','voll','übervoll'];
 
 let db=load(), pendingPhoto=null, isMeal=false, isDrink=false;
 
@@ -467,7 +488,7 @@ function load(){
     }
     if(r) return JSON.parse(r);
   }catch(e){}
-  return {entries:[], daily:{}, words:'', dismissed:[], marks:[]};
+  return {entries:[], daily:{}, words:'', ideas:'', dismissed:[], marks:[]};
 }
 function save(){
   let s;
@@ -511,7 +532,7 @@ document.querySelectorAll('.tab').forEach(b=>{
       document.getElementById('s-'+n).hidden=(n!==b.dataset.t));
     if(b.dataset.t==='verlauf') renderHistory();
     if(b.dataset.t==='woche') renderReport();
-    fuOpen=false; renderFollowup();
+    fuOpen=false; renderFollowup(); hideFullness();
     window.scrollTo(0,0);
   };
 });
@@ -598,16 +619,34 @@ document.getElementById('saveBtn').onclick=()=>{
   const t=document.getElementById('text').value.trim();
   if(!t && !pendingPhoto){ toast('Nichts drin'); return; }
   const ts=entryTs();
-  db.entries.push({id:Date.now(),ts,type:'entry',text:t,photo:pendingPhoto,meal:isMeal,drink:isDrink});
+  const id=Date.now();
+  db.entries.push({id,ts,type:'entry',text:t,photo:pendingPhoto,meal:isMeal,drink:isDrink});
   save();
   document.getElementById('text').value='';
   document.getElementById('photoPreview').innerHTML='';
+  const wasMeal=isMeal;
   pendingPhoto=null; isMeal=false; isDrink=false;
   mt.setAttribute('aria-pressed','false'); dt2.setAttribute('aria-pressed','false');
   const wasCustom=customTime;
   resetTime();
   toast(wasCustom?'Gespeichert — '+tsLabel(ts):'Gespeichert');
+  // Nach einer Mahlzeit: Völlegefühl optional erfassen (Körpersignal, keine Pflicht).
+  if(wasMeal) showFullness(id); else hideFullness();
 };
+
+/* Völlegefühl — optional, nach dem Essen */
+let pendingFullId=null;
+function showFullness(id){ pendingFullId=id; document.getElementById('fullCard').hidden=false; }
+function hideFullness(){ pendingFullId=null; document.getElementById('fullCard').hidden=true; }
+document.querySelectorAll('[data-full]').forEach(b=>{
+  b.onclick=()=>{
+    if(pendingFullId==null) return;
+    const e=db.entries.find(x=>x.id===pendingFullId);
+    if(e){ e.fullness=+b.dataset.full; save(); toast('Völlegefühl: '+FULL[+b.dataset.full]); }
+    hideFullness();
+  };
+});
+document.getElementById('fullSkip').onclick=hideFullness;
 
 /* Jetzt-Knopf */
 document.getElementById('sosBtn').onclick=()=>{
@@ -628,9 +667,18 @@ document.getElementById('sosBtn').onclick=()=>{
 /* Moment-Knöpfe */
 document.querySelectorAll('[data-moment]').forEach(b=>{
   b.onclick=()=>{
+    const what=b.dataset.moment;
+    // Rauchen ist ein Zähler: +1, zeigt den Tageszähler statt der Uhrzeit.
+    if(what==='Rauchen'){
+      db.entries.push({id:Date.now(),ts:Date.now(),type:'moment',what:'Rauchen'});
+      save();
+      toast('Rauchen — '+smokeCount(dayKey(new Date()))+'× heute');
+      if(customTime) resetTime();
+      return;
+    }
     const ts=entryTs();
-    db.entries.push({id:Date.now(),ts,type:'moment',what:b.dataset.moment});
-    save(); toast(b.dataset.moment+' — '+tsLabel(ts));
+    db.entries.push({id:Date.now(),ts,type:'moment',what});
+    save(); toast(what+' — '+tsLabel(ts));
     if(customTime) resetTime();
   };
 });
@@ -793,7 +841,8 @@ document.getElementById('periodBtn').onclick=()=>{
 /* Verlauf — Zeitleiste */
 function renderHistory(){
   const host=document.getElementById('history');
-  const vis=db.entries.filter(e=>!(e.type==='moment'&&e.what==='Periode'));
+  // Periode und Rauchen erscheinen nicht als einzelne Punkte — Rauchen zählt im Tageskopf.
+  const vis=db.entries.filter(e=>!(e.type==='moment'&&(e.what==='Periode'||e.what==='Rauchen')));
   if(!vis.length){
     host.innerHTML=`<p class="empty">Noch nichts eingetragen.<br>Fang an, wann du magst.</p>`;
     return;
@@ -802,8 +851,8 @@ function renderHistory(){
   vis.slice().sort((a,b)=>a.ts-b.ts).forEach(e=>{
     const k=dayKey(new Date(e.ts)); (byDay[k]=byDay[k]||[]).push(e);
   });
-  // Neueste zuerst: Heute steht oben, ältere Tage darunter.
-  const days=Object.keys(byDay).sort().reverse().slice(0,14);
+  // Ältester Tag oben, neuester unten — Zeitachse wächst nach unten.
+  const days=Object.keys(byDay).sort().reverse().slice(0,14).reverse();
 
   let out='<div class="tl"><div class="spine"></div>';
   days.forEach(k=>{
@@ -817,11 +866,13 @@ function renderHistory(){
     let lastMeal=null;
     list.forEach(e=>{
       if(e.type==='entry'&&e.meal){
-        // Lücke nur innerhalb eines Tages — wie im Monat. Nacht zählt nicht.
-        if(lastMeal && (e.ts-lastMeal)/36e5>7.5
-           && dayKey(new Date(lastMeal))===dayKey(new Date(e.ts))){
-          const h=Math.round((e.ts-lastMeal)/36e5);
-          out+=`<div class="gap"><span>${h} Stunden</span></div>`;
+        // Zeit zwischen zwei Mahlzeiten am selben Tag. Nacht zählt nicht.
+        if(lastMeal && dayKey(new Date(lastMeal))===dayKey(new Date(e.ts))){
+          const mins=Math.round((e.ts-lastMeal)/6e4);
+          const hh=Math.floor(mins/60), mm=mins%60;
+          const lbl=hh?(mm?`${hh} Std ${mm} Min`:`${hh} Std`):`${mm} Min`;
+          const big=mins/60>7.5; // ab 7,5 h die auffällige Lücke, sonst dezent
+          out+=`<div class="gap${big?'':' mini'}"><span>${lbl}</span></div>`;
         }
         lastMeal=e.ts;
       }
@@ -832,7 +883,8 @@ function renderHistory(){
       } else if(e.type==='moment'){
         dot='d ring'; cls='x ev'; body=esc(e.what);
       } else if(e.meal){
-        body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'')+'<small>Essen</small>';
+        const fl=e.fullness!==undefined?' · '+FULL[e.fullness]:'';
+        body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'')+`<small>Essen${fl}</small>`;
       } else if(e.drink){
         dot='d drink';
         body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'')+'<small>Getränk</small>';
@@ -892,7 +944,7 @@ function renderHistory(){
       save();
     };
   });
-  setTimeout(()=>window.scrollTo(0,0),0);
+  setTimeout(()=>window.scrollTo(0,document.body.scrollHeight),0);
 }
 
 /* Einzelnen Eintrag entfernen — mit kurzer Rückgängig-Chance, kein Dialog */
@@ -968,7 +1020,7 @@ function renderReport(){
     out+=`<span class="cd ${cls}">${d}</span>`;
   }
   out+='</div>';
-  out+='<p class="callegend"><i class="lg"></i>Lange Lücke &nbsp;·&nbsp; <i class="ls"></i>間 gedrückt</p>';
+  out+='<p class="callegend"><i class="lg"></i>Lange Lücke &nbsp;·&nbsp; <i class="ls"></i>今 gedrückt</p>';
 
   /* Die eine Frage: fällt beides zusammen? */
   const both=Object.keys(sosDays).filter(k=>flagged(k)).sort();
@@ -977,9 +1029,9 @@ function renderReport(){
   if(!meals.length){
     p.push(`Diesen Monat ist kein Eintrag als &bdquo;Essen dabei&ldquo; markiert. Ohne das l&auml;sst sich zu L&uuml;cken nichts sagen.`);
   } else if(!sos.length){
-    p.push(`間 wurde diesen Monat nicht gedr&uuml;ckt.`);
+    p.push(`今 wurde diesen Monat nicht gedr&uuml;ckt.`);
   } else if(both.length){
-    p.push(`An ${both.length} von ${Object.keys(sosDays).length} Tagen, an denen du 間 gedr&uuml;ckt hast, hatte der Tag vorher eine lange L&uuml;cke.`);
+    p.push(`An ${both.length} von ${Object.keys(sosDays).length} Tagen, an denen du 今 gedr&uuml;ckt hast, hatte der Tag vorher eine lange L&uuml;cke.`);
     out+=`<div class="pairs">`+both.slice(-5).map(k=>{
       const dt=new Date(k+'T12:00');
       const wd=dt.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
@@ -989,11 +1041,11 @@ function renderReport(){
       if(lateStart[k]) why+=`<span><i class="lg"></i>Erste Mahlzeit erst um ${hhmm(firstOf[k])}</span>`;
       if(gapInfo[k]) why+=`<span><i class="lg"></i>${Math.round(gapInfo[k])} Stunden ohne Mahlzeit</span>`;
       return `<div class="pr"><b>${wd}</b>${why}
-        <span><i class="ls"></i>間 um ${times}</span>
+        <span><i class="ls"></i>今 um ${times}</span>
         ${cd?`<em>Zyklustag ${cd}</em>`:''}</div>`;
     }).join('')+`</div>`;
   } else {
-    p.push(`An den Tagen, an denen du 間 gedr&uuml;ckt hast, gab es keine lange L&uuml;cke.`);
+    p.push(`An den Tagen, an denen du 今 gedr&uuml;ckt hast, gab es keine lange L&uuml;cke.`);
   }
 
   out+=p.map(t=>`<p>${t}</p>`).join('');
@@ -1038,6 +1090,12 @@ document.getElementById('wordsSave').onclick=()=>{
   db.words=document.getElementById('ownWords').value; save(); toast('Gespeichert');
 };
 
+/* Ideen — bleiben lokal, landen im Export */
+document.getElementById('ideas').value=db.ideas||'';
+document.getElementById('ideasSave').onclick=()=>{
+  db.ideas=document.getElementById('ideas').value; save(); toast('Gespeichert');
+};
+
 /* Export */
 function dl(n,c,t){
   const u=URL.createObjectURL(new Blob([c],{type:t}));
@@ -1045,7 +1103,7 @@ function dl(n,c,t){
   setTimeout(()=>URL.revokeObjectURL(u),1000);
 }
 document.getElementById('exportJson').onclick=()=>
-  dl(`ma-${dayKey(new Date())}.json`,JSON.stringify(db,null,2),'application/json');
+  dl(`ima-${dayKey(new Date())}.json`,JSON.stringify(db,null,2),'application/json');
 document.getElementById('exportTxt').onclick=()=>{
   const lines=[], byDay={};
   db.entries.slice().sort((a,b)=>a.ts-b.ts).forEach(e=>{
@@ -1058,9 +1116,10 @@ document.getElementById('exportTxt').onclick=()=>{
       +(meta?`  (${meta})`:''),'-'.repeat(34));
     byDay[k].forEach(e=>{
       const m=db.marks.includes(e.id)?' *':'';
+      if(e.type==='moment'&&e.what==='Rauchen') return; // Rauchen steht als Tageszähler im Kopf
       if(e.type==='sos') lines.push(`${hhmm(e.ts)}  [Jetzt]${e.note?' — '+e.note:''}${m}`);
       else if(e.type==='moment') lines.push(`${hhmm(e.ts)}  [${e.what}]${m}`);
-      else lines.push(`${hhmm(e.ts)}  ${e.meal?'[Essen] ':e.drink?'[Getränk] ':''}${e.text||''}${e.photo?' [Foto]':''}${m}`);
+      else lines.push(`${hhmm(e.ts)}  ${e.meal?'[Essen] ':e.drink?'[Getränk] ':''}${e.text||''}${e.meal&&e.fullness!==undefined?' ('+FULL[e.fullness]+')':''}${e.photo?' [Foto]':''}${m}`);
     });
     const d=db.daily[k];
     if(d){
@@ -1070,7 +1129,10 @@ document.getElementById('exportTxt').onclick=()=>{
       if(p.length) lines.push('       '+p.join(' · '));
     }
   });
-  dl(`ma-${dayKey(new Date())}.txt`,lines.join('\n'),'text/plain');
+  if(db.ideas && db.ideas.trim()){
+    lines.push('', '', 'IDEEN', '-'.repeat(34), db.ideas.trim());
+  }
+  dl(`ima-${dayKey(new Date())}.txt`,lines.join('\n'),'text/plain');
 };
 
 /* Löschen */
@@ -1084,9 +1146,10 @@ document.getElementById('wipe').onclick=()=>{
   d.classList.remove('soft'); // Löschen bleibt bewusst — kein Tippen-schließt
   d.showModal();
   document.getElementById('dlgYes').onclick=()=>{
-    db={entries:[],daily:{},words:'',dismissed:[],marks:[]};
+    db={entries:[],daily:{},words:'',ideas:'',dismissed:[],marks:[]};
     save(); d.close();
     document.getElementById('ownWords').value='';
+    document.getElementById('ideas').value='';
     document.querySelectorAll('.step').forEach(x=>x.setAttribute('aria-pressed','false'));
     timeCards(); toast('Gelöscht');
   };

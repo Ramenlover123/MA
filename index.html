@@ -518,7 +518,7 @@
 
 <script>
 const KEY='ma.v2';
-const VERSION='v20';
+const VERSION='v21';
 document.getElementById('ver').textContent='ima · '+VERSION;
 const SYMPTOMS=[
   {k:'kopf',   label:'Kopfschmerz',   steps:['keiner','leicht','mittel','stark']},
@@ -768,14 +768,14 @@ document.getElementById('eveningSave').onclick=()=>{
     if(p) out[sc.dataset.key]=+p.dataset.v;
   });
   db.daily[k]={...(db.daily[k]||{}),...out};
-  save(); toast('Gespeichert'); timeCards();
+  save(); toast('Gespeichert'); forceE=false; timeCards();
 };
 document.querySelectorAll('#morningCard .step').forEach(b=>{
   b.onclick=()=>{
     b.closest('.scale').querySelectorAll('.step').forEach(x=>x.setAttribute('aria-pressed',x===b));
     const k=logKey();
     db.daily[k]={...(db.daily[k]||{}),schlaf:+b.dataset.v};
-    save(); toast('Gespeichert'); setTimeout(timeCards,700);
+    save(); toast('Gespeichert'); forceM=false; setTimeout(timeCards,700);
   };
 });
 
@@ -786,13 +786,16 @@ function timeCards(){
   const d=db.daily[logKey()]||{};
   const mDone=d.schlaf!==undefined;
   const eDone=SYMPTOMS.some(s=>d[s.k]!==undefined);
-  // Morgen: ab Tagesbeginn (5 Uhr) bis mittags. Abend: ab 18 Uhr bis in die
-  // Nacht hinein (vor 5 Uhr) — die Stunden 0–5 gehören noch zum Vorabend.
-  const showM=(forceM||(h>=DAYSTART&&h<12)) && !mDone;
-  const showE=(forceE||(h>=18||h<DAYSTART)) && !eDone;
+  // Auto-Fenster: Schlaf 5–13 Uhr, Abendregler 22 Uhr → 5 Uhr früh.
+  // „Nachtragen" (force*) öffnet die Karte jederzeit, auch zum Bearbeiten,
+  // unabhängig davon, ob an dem Tag schon etwas eingetragen ist.
+  const showM=forceM || ((h>=DAYSTART&&h<13) && !mDone);
+  const showE=forceE || ((h>=22||h<DAYSTART) && !eDone);
   document.getElementById('morningCard').hidden=!showM;
   document.getElementById('eveningCard').hidden=!showE;
-  document.getElementById('laterCard').hidden=(showM||showE)||(mDone&&eDone);
+  // Schlaf & Abendregler unten immer erreichbar halten: Nachtragen-Karte
+  // zeigen, sobald gerade keine der beiden Karten offen ist.
+  document.getElementById('laterCard').hidden=showM||showE;
 }
 document.getElementById('showMorning').onclick=()=>{forceM=true;timeCards();window.scrollTo(0,300)};
 document.getElementById('showEvening').onclick=()=>{forceE=true;timeCards();window.scrollTo(0,300)};

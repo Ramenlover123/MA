@@ -174,7 +174,6 @@
     margin-top:5px;letter-spacing:.4px}
   .n{display:flex;align-items:flex-start;position:relative;min-height:52px;
     cursor:pointer;z-index:1}
-  .dn{display:flex;align-items:flex-start;position:relative;min-height:44px;z-index:1}
   .tm{width:50%;flex:0 0 50%;min-width:0;text-align:right;padding:13px 18px 0 12px;
     font-size:10.5px;color:var(--on-faint);font-variant-numeric:tabular-nums}
   .d{position:absolute;left:50%;top:16px;width:7px;height:7px;border-radius:50%;
@@ -519,7 +518,7 @@
 
 <script>
 const KEY='ma.v2';
-const VERSION='v16';
+const VERSION='v17';
 document.getElementById('ver').textContent='ima · '+VERSION;
 const SYMPTOMS=[
   {k:'kopf',   label:'Kopfschmerz',   steps:['keiner','leicht','mittel','stark']},
@@ -790,8 +789,8 @@ function timeCards(){
   const de=db.daily[eveningKey()]||{};
   const mDone=dm.schlaf!==undefined;
   const eDone=SYMPTOMS.some(s=>de[s.k]!==undefined);
-  const showM=(forceM||(h>=5 && h<12)) && !mDone;   // Morgen: 5–12 Uhr
-  const showE=(forceE||(h>=18 || h<5)) && !eDone;   // Abend: ab 18 Uhr bis 5 Uhr früh
+  const showM=(forceM||(h<12)) && !mDone;
+  const showE=(forceE||(h>=18)) && !eDone;
   document.getElementById('morningCard').hidden=!showM;
   document.getElementById('eveningCard').hidden=!showE;
   document.getElementById('laterCard').hidden=(showM||showE)||(mDone&&eDone);
@@ -926,9 +925,6 @@ function renderHistory(){
     out+=`<div class="dh"><b>${lbl}</b>${meta?`<em>${meta}</em>`:''}</div>`;
 
     const dd=db.daily[k]||{};
-    // Schlaf gehört an den Morgen — oben in den Tag.
-    if(dd.schlaf!==undefined)
-      out+=`<div class="dn"><div class="tm">morgens</div><div class="d hollow"></div><div class="x ev">Schlaf: ${SLEEP[dd.schlaf]}</div></div>`;
 
     const list=byDay[k];
     let lastMeal=null;
@@ -965,10 +961,10 @@ function renderHistory(){
         <div class="${dot}"></div><div class="${cls}">${body}</div></div>`;
     });
 
-    // Abendregler gehören an den Abend — ans Ende des Tages.
-    const sym=SYMPTOMS.filter(s=>dd[s.k]!==undefined)
-      .map(s=>`${s.label}: ${s.steps[dd[s.k]]}`).join(' · ');
-    if(sym) out+=`<div class="dn"><div class="tm">abends</div><div class="d ring"></div><div class="x ev">${sym}</div></div>`;
+    const chips=SYMPTOMS.filter(s=>dd[s.k]!==undefined)
+      .map(s=>`<span class="tag">${s.label}: ${s.steps[dd[s.k]]}</span>`).join('')
+      +(dd.schlaf!==undefined?`<span class="tag">Schlaf: ${SLEEP[dd.schlaf]}</span>`:'');
+    if(chips) out+=`<div class="chips">${chips}</div>`;
   });
   out+='</div>';
   host.innerHTML=out;

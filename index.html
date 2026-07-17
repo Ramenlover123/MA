@@ -150,6 +150,7 @@
   .idea span{flex:1;overflow-wrap:anywhere}
   .ideadel{background:none;border:0;color:var(--on-faint);font-size:19px;line-height:1;
     cursor:pointer;padding:0 4px}
+  .ver{font-size:11px;color:var(--on-ghost);letter-spacing:.5px;margin:14px 0 0}
 
   /* Skalen */
   .scale{margin:0 0 18px}
@@ -465,6 +466,7 @@
     <div class="group" style="padding-bottom:20px">
       <h2>Was diese App nicht ist</h2>
       <p class="hint">Sie zeigt, was war. Sie bewertet nicht, deutet nicht und behandelt nicht. Bei Essst&ouml;rungen wirkt begleitete Hilfe &#8212; der Weg dahin f&uuml;hrt in Deutschland &uuml;ber die Haus&auml;rztin und die Terminservicestelle 116117.</p>
+      <p class="ver" id="ver"></p>
     </div>
   </section>
 </div>
@@ -516,6 +518,8 @@
 
 <script>
 const KEY='ma.v2';
+const VERSION='v15';
+document.getElementById('ver').textContent='ima · '+VERSION;
 const SYMPTOMS=[
   {k:'kopf',   label:'Kopfschmerz',   steps:['keiner','leicht','mittel','stark']},
   {k:'energie',label:'Energie',       steps:['gut','okay','schlapp','leer']},

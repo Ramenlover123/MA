@@ -518,7 +518,7 @@
 
 <script>
 const KEY='ma.v2';
-const VERSION='v19';
+const VERSION='v20';
 document.getElementById('ver').textContent='ima · '+VERSION;
 const SYMPTOMS=[
   {k:'kopf',   label:'Kopfschmerz',   steps:['keiner','leicht','mittel','stark']},
@@ -594,8 +594,10 @@ document.querySelectorAll('.tab').forEach(b=>{
 });
 
 /* Essen-Schalter */
+// Angezeigtes Datum folgt dem echten Kalender — die 5-Uhr-Regel gilt nur der
+// Datenzuordnung (Einträge, Abendregler, Schlaf), nicht der Anzeige.
 document.getElementById('today').textContent=
-  new Date(Date.now()-DAYSTART*36e5).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
+  new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
 
 const mt=document.getElementById('mealToggle');
 const dt2=document.getElementById('drinkToggle');
@@ -784,8 +786,10 @@ function timeCards(){
   const d=db.daily[logKey()]||{};
   const mDone=d.schlaf!==undefined;
   const eDone=SYMPTOMS.some(s=>d[s.k]!==undefined);
-  const showM=(forceM||(h<12)) && !mDone;
-  const showE=(forceE||(h>=18)) && !eDone;
+  // Morgen: ab Tagesbeginn (5 Uhr) bis mittags. Abend: ab 18 Uhr bis in die
+  // Nacht hinein (vor 5 Uhr) — die Stunden 0–5 gehören noch zum Vorabend.
+  const showM=(forceM||(h>=DAYSTART&&h<12)) && !mDone;
+  const showE=(forceE||(h>=18||h<DAYSTART)) && !eDone;
   document.getElementById('morningCard').hidden=!showM;
   document.getElementById('eveningCard').hidden=!showE;
   document.getElementById('laterCard').hidden=(showM||showE)||(mDone&&eDone);
@@ -915,7 +919,9 @@ function renderHistory(){
   days.forEach(k=>{
     const dt=new Date(k+'T12:00'), cd=cycleDay(dt.getTime()), sc=smokeCount(k);
     const meta=[cd?`Zyklustag ${cd}`:null, sc?`${sc}× geraucht`:null].filter(x=>x).join(' · ');
-    const today=k===logKey();
+    // "Heute" nach echtem Datum. Ein Tagesblock trägt den Log-Tag-Schlüssel:
+    // die Nachtstunden (0–5) landen im Vortagsblock, der dann auch so heißt.
+    const today=k===dayKey(new Date());
     const lbl=today?'Heute':dt.toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'});
     out+=`<div class="dh"><b>${lbl}</b>${meta?`<em>${meta}</em>`:''}</div>`;
 
@@ -1134,7 +1140,7 @@ function renderReport(){
       flagged(k)?'g':'',
       sosDays[k]?'s':'',
       future?'f':'',
-      k===logKey()?'t':''
+      k===dayKey(new Date())?'t':''
     ].filter(x=>x).join(' ');
     out+=`<span class="cd ${cls}">${d}</span>`;
   }

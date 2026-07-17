@@ -142,6 +142,15 @@
     transition:.13s}
   .m:active{background:var(--fill-f)}
 
+  /* Ideen-Liste */
+  #ideasList{margin-top:14px}
+  .idea{display:flex;align-items:flex-start;gap:10px;padding:10px 0;
+    border-top:1px solid var(--edge-f);font-size:14px;color:var(--on-soft);line-height:1.5}
+  .idea:first-child{border-top:0}
+  .idea span{flex:1;overflow-wrap:anywhere}
+  .ideadel{background:none;border:0;color:var(--on-faint);font-size:19px;line-height:1;
+    cursor:pointer;padding:0 4px}
+
   /* Skalen */
   .scale{margin:0 0 18px}
   .scale-label{font-size:14px;margin:0 0 8px;color:var(--on-soft)}
@@ -421,8 +430,9 @@
     <div class="group">
       <h2>Ideen</h2>
       <p class="hint">Was dir zur App einf&auml;llt &#8212; f&uuml;r sp&auml;ter. Bleibt auf dem Ger&auml;t und steht im Export.</p>
-      <textarea id="ideas" placeholder="Noch leer."></textarea>
-      <button class="m wide" id="ideasSave">Speichern</button>
+      <textarea id="ideas" placeholder="Neue Idee &#8230;"></textarea>
+      <button class="m wide" id="ideasSave">Hinzuf&uuml;gen</button>
+      <div id="ideasList"></div>
     </div>
 
     <div class="group">
@@ -1188,10 +1198,27 @@ document.getElementById('wordsSave').onclick=()=>{
   db.words=document.getElementById('ownWords').value; save(); toast('Gespeichert');
 };
 
-/* Ideen — bleiben lokal, landen im Export */
-document.getElementById('ideas').value=db.ideas||'';
+/* Ideen — jede gespeicherte Idee wird angehängt, das Feld leert sich */
+function renderIdeas(){
+  const wrap=document.getElementById('ideasList');
+  const items=(db.ideas||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  wrap.innerHTML=items.map((t,i)=>
+    `<div class="idea"><span>${esc(t)}</span><button class="ideadel" data-i="${i}" aria-label="Löschen">×</button></div>`).join('');
+  wrap.querySelectorAll('.ideadel').forEach(b=>{
+    b.onclick=()=>{
+      const arr=(db.ideas||'').split('\n').map(s=>s.trim()).filter(Boolean);
+      arr.splice(+b.dataset.i,1);
+      db.ideas=arr.join('\n'); save(); renderIdeas();
+    };
+  });
+}
+renderIdeas();
 document.getElementById('ideasSave').onclick=()=>{
-  db.ideas=document.getElementById('ideas').value; save(); toast('Gespeichert');
+  const ta=document.getElementById('ideas');
+  const t=ta.value.trim();
+  if(!t){ toast('Nichts drin'); return; }
+  db.ideas=(db.ideas&&db.ideas.trim())?db.ideas.trim()+'\n'+t:t;
+  save(); ta.value=''; renderIdeas(); toast('Hinzugefügt');
 };
 
 /* Export */
@@ -1261,7 +1288,7 @@ document.getElementById('importInput').onchange=e=>{
       if(typeof db.ideas!=='string') db.ideas='';
       save(); d.close();
       document.getElementById('ownWords').value=db.words||'';
-      document.getElementById('ideas').value=db.ideas||'';
+      document.getElementById('ideas').value=''; renderIdeas();
       document.querySelectorAll('.step').forEach(x=>x.setAttribute('aria-pressed','false'));
       buildScales(); timeCards(); renderFollowup();
       toast('Importiert');
@@ -1285,7 +1312,7 @@ document.getElementById('wipe').onclick=()=>{
     db={entries:[],daily:{},words:'',ideas:'',dismissed:[],marks:[]};
     save(); d.close();
     document.getElementById('ownWords').value='';
-    document.getElementById('ideas').value='';
+    document.getElementById('ideas').value=''; renderIdeas();
     document.querySelectorAll('.step').forEach(x=>x.setAttribute('aria-pressed','false'));
     timeCards(); toast('Gelöscht');
   };

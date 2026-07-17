@@ -518,7 +518,7 @@
 
 <script>
 const KEY='ma.v2';
-const VERSION='v21';
+const VERSION='v22';
 document.getElementById('ver').textContent='ima · '+VERSION;
 const SYMPTOMS=[
   {k:'kopf',   label:'Kopfschmerz',   steps:['keiner','leicht','mittel','stark']},
@@ -531,6 +531,25 @@ const SLEEP=['gut','okay','schlecht','kaum'];
 const FULL=['leicht','angenehm','voll','übervoll'];
 
 let db=load(), pendingPhoto=null, isMeal=false, isDrink=false;
+
+/* Einmalige Reparatur (darf in einer späteren Version wieder raus):
+   Der Abendregler vom 16.07. war versehentlich unter dem 17.07. gespeichert.
+   Läuft genau einmal (Flag), verschiebt nur die Symptomwerte; Schlaf bleibt. */
+(function fixAbendregler1617(){
+  if(db.fix_abendregler_16===true) return;
+  const s=db.daily && db.daily['2026-07-17'];
+  if(s){
+    const keys=SYMPTOMS.map(x=>x.k); // kopf, energie, konz, magen, akt
+    if(keys.some(k=>k in s)){
+      const dst={...(db.daily['2026-07-16']||{})};
+      keys.forEach(k=>{ if(k in s){ dst[k]=s[k]; delete s[k]; } });
+      db.daily['2026-07-16']=dst;
+      if(Object.keys(s).length===0) delete db.daily['2026-07-17'];
+    }
+  }
+  db.fix_abendregler_16=true;
+  save();
+})();
 
 function load(){
   try{

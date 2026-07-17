@@ -435,6 +435,13 @@
     </div>
 
     <div class="group">
+      <h2>Auf dieses Ger&auml;t laden</h2>
+      <p class="hint">Eine gesicherte JSON-Datei von einem anderen Ger&auml;t einlesen. Ersetzt die Daten auf <em>diesem</em> Ger&auml;t.</p>
+      <button class="m" id="importBtn">Datei laden</button>
+      <input type="file" id="importInput" accept="application/json,.json" hidden>
+    </div>
+
+    <div class="group">
       <h2>Auf den Homescreen</h2>
       <p class="hint">Android: Men&uuml; &#8942; &#8594; &bdquo;Zum Startbildschirm hinzuf&uuml;gen&ldquo;. iPhone: Teilen &#8594; &bdquo;Zum Home-Bildschirm&ldquo;.</p>
     </div>
@@ -1224,6 +1231,44 @@ document.getElementById('exportTxt').onclick=()=>{
     lines.push('', '', 'IDEEN', '-'.repeat(34), db.ideas.trim());
   }
   dl(`ima-${dayKey(new Date())}.txt`,lines.join('\n'),'text/plain');
+};
+
+/* Import — JSON von einem anderen Gerät einlesen. Bleibt lokal, kein Server. */
+document.getElementById('importBtn').onclick=()=>document.getElementById('importInput').click();
+document.getElementById('importInput').onchange=e=>{
+  const f=e.target.files[0]; if(!f){ return; }
+  const rd=new FileReader();
+  rd.onerror=()=>toast('Datei nicht lesbar');
+  rd.onload=()=>{
+    let data;
+    try{ data=JSON.parse(rd.result); }catch(err){ toast('Datei nicht lesbar'); e.target.value=''; return; }
+    if(!data || !Array.isArray(data.entries)){ toast('Keine gültige ima-Datei'); e.target.value=''; return; }
+    const d=document.getElementById('confirmDlg');
+    document.getElementById('dlgTitle').textContent='Daten importieren?';
+    document.getElementById('dlgText').textContent='Die Datei ersetzt alle Einträge, Sätze und Ideen auf diesem Gerät. Sichere vorher, falls du hier etwas behalten willst.';
+    document.getElementById('dlgYes').hidden=false;
+    document.getElementById('dlgYes').textContent='Importieren';
+    document.getElementById('dlgNo').textContent='Abbrechen';
+    d.classList.remove('soft');
+    d.showModal();
+    document.getElementById('dlgYes').onclick=()=>{
+      db={entries:[], daily:{}, words:'', ideas:'', dismissed:[], marks:[], ...data};
+      if(!Array.isArray(db.entries)) db.entries=[];
+      if(!db.daily || typeof db.daily!=='object') db.daily={};
+      if(!Array.isArray(db.dismissed)) db.dismissed=[];
+      if(!Array.isArray(db.marks)) db.marks=[];
+      if(typeof db.words!=='string') db.words='';
+      if(typeof db.ideas!=='string') db.ideas='';
+      save(); d.close();
+      document.getElementById('ownWords').value=db.words||'';
+      document.getElementById('ideas').value=db.ideas||'';
+      document.querySelectorAll('.step').forEach(x=>x.setAttribute('aria-pressed','false'));
+      buildScales(); timeCards(); renderFollowup();
+      toast('Importiert');
+    };
+    e.target.value='';
+  };
+  rd.readAsText(f);
 };
 
 /* Löschen */

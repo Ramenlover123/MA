@@ -518,7 +518,7 @@
 
 <script>
 const KEY='ma.v2';
-const VERSION='v17';
+const VERSION='v19';
 document.getElementById('ver').textContent='ima · '+VERSION;
 const SYMPTOMS=[
   {k:'kopf',   label:'Kopfschmerz',   steps:['keiner','leicht','mittel','stark']},
@@ -561,8 +561,9 @@ function save(){
 }
 const pad=n=>String(n).padStart(2,'0');
 const dayKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-// Nach Mitternacht (bis 5 Uhr) gehört der Abend noch zum Vortag.
-function eveningKey(){ const d=new Date(); if(d.getHours()<5) d.setDate(d.getDate()-1); return dayKey(d); }
+// Der App-Tag beginnt um 5 Uhr früh: alles zwischen 0 und 5 Uhr zählt zum Vortag.
+const DAYSTART=5;
+const logKey=ts=>dayKey(new Date((ts===undefined?Date.now():ts)-DAYSTART*36e5));
 const hhmm=ts=>{const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -594,7 +595,7 @@ document.querySelectorAll('.tab').forEach(b=>{
 
 /* Essen-Schalter */
 document.getElementById('today').textContent=
-  new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
+  new Date(Date.now()-DAYSTART*36e5).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
 
 const mt=document.getElementById('mealToggle');
 const dt2=document.getElementById('drinkToggle');
@@ -662,9 +663,9 @@ function entryTs(){
 // Benennt einen Zeitstempel, falls er auf einen anderen Tag als heute fällt —
 // damit eine Rückdatierung nie stillschweigend passiert.
 function tsLabel(ts){
-  const k=dayKey(new Date(ts)), today=dayKey(new Date());
+  const k=logKey(ts), today=logKey();
   if(k===today) return hhmm(ts);
-  const yest=dayKey(new Date(Date.now()-864e5));
+  const yest=logKey(Date.now()-864e5);
   const day=(k===yest)?'gestern':new Date(ts).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
   return day+' '+hhmm(ts);
 }
@@ -750,21 +751,16 @@ function buildScales(){
       b.onclick=()=>sc.querySelectorAll('.step').forEach(x=>x.setAttribute('aria-pressed',x===b));
     });
   });
-  const dm=db.daily[dayKey(new Date())]||{};   // Schlaf: heute
-  const de=db.daily[eveningKey()]||{};          // Abendregler: ggf. Vortag
-  document.querySelectorAll('#morningCard .scale').forEach(sc=>{
-    const v=dm[sc.dataset.key];
-    if(v!==undefined){const b=sc.querySelector(`.step[data-v="${v}"]`); if(b)b.setAttribute('aria-pressed','true')}
-  });
-  document.querySelectorAll('#eveningScales .scale').forEach(sc=>{
-    const v=de[sc.dataset.key];
+  const d=db.daily[logKey()]||{};
+  document.querySelectorAll('.scale').forEach(sc=>{
+    const v=d[sc.dataset.key];
     if(v!==undefined){const b=sc.querySelector(`.step[data-v="${v}"]`); if(b)b.setAttribute('aria-pressed','true')}
   });
 }
 buildScales();
 
 document.getElementById('eveningSave').onclick=()=>{
-  const k=eveningKey(), out={};
+  const k=logKey(), out={};
   document.querySelectorAll('#eveningScales .scale').forEach(sc=>{
     const p=sc.querySelector('.step[aria-pressed="true"]');
     if(p) out[sc.dataset.key]=+p.dataset.v;
@@ -775,7 +771,7 @@ document.getElementById('eveningSave').onclick=()=>{
 document.querySelectorAll('#morningCard .step').forEach(b=>{
   b.onclick=()=>{
     b.closest('.scale').querySelectorAll('.step').forEach(x=>x.setAttribute('aria-pressed',x===b));
-    const k=dayKey(new Date());
+    const k=logKey();
     db.daily[k]={...(db.daily[k]||{}),schlaf:+b.dataset.v};
     save(); toast('Gespeichert'); setTimeout(timeCards,700);
   };
@@ -785,10 +781,9 @@ document.querySelectorAll('#morningCard .step').forEach(b=>{
 let forceM=false, forceE=false;
 function timeCards(){
   const h=new Date().getHours();
-  const dm=db.daily[dayKey(new Date())]||{};
-  const de=db.daily[eveningKey()]||{};
-  const mDone=dm.schlaf!==undefined;
-  const eDone=SYMPTOMS.some(s=>de[s.k]!==undefined);
+  const d=db.daily[logKey()]||{};
+  const mDone=d.schlaf!==undefined;
+  const eDone=SYMPTOMS.some(s=>d[s.k]!==undefined);
   const showM=(forceM||(h<12)) && !mDone;
   const showE=(forceE||(h>=18)) && !eDone;
   document.getElementById('morningCard').hidden=!showM;
@@ -809,8 +804,8 @@ function renderFollowup(){
     .sort((a,b)=>b.ts-a.ts)[0];
   if(!open||!onHeute){ slot.innerHTML=''; fuOpen=false; return; }
 
-  const od=new Date(open.ts), today=dayKey(new Date());
-  const ok=dayKey(od), yest=dayKey(new Date(now-864e5));
+  const od=new Date(open.ts), today=logKey();
+  const ok=logKey(open.ts), yest=logKey(now-864e5);
   const when=(ok===today?'Heute':ok===yest?'Gestern':od.toLocaleDateString('de-DE',{weekday:'long'}))
     +', '+hhmm(open.ts);
 
@@ -866,7 +861,7 @@ renderFollowup();
 /* Zyklus — Tag 1 ist der erste Tag einer Periode, nicht jeder markierte Tag */
 function cycleDay(ts){
   const days=[...new Set(db.entries.filter(e=>e.type==='moment'&&e.what==='Periode')
-    .map(e=>dayKey(new Date(e.ts))))].sort();
+    .map(e=>logKey(e.ts)))].sort();
   // Blockanfänge finden: ein Tag, dem kein direkter Vortag vorausgeht
   const starts=days.filter((d,i)=>{
     if(i===0) return true;
@@ -881,13 +876,13 @@ function cycleDay(ts){
 
 /* Rauchen pro Tag */
 function smokeCount(k){
-  return db.entries.filter(e=>e.type==='moment'&&e.what==='Rauchen'&&dayKey(new Date(e.ts))===k).length;
+  return db.entries.filter(e=>e.type==='moment'&&e.what==='Rauchen'&&logKey(e.ts)===k).length;
 }
 
 /* Periode — ein Klick, speichert den Tag */
 document.getElementById('periodBtn').onclick=()=>{
-  const k=dayKey(new Date());
-  const ex=db.entries.find(e=>e.type==='moment'&&e.what==='Periode'&&dayKey(new Date(e.ts))===k);
+  const k=logKey();
+  const ex=db.entries.find(e=>e.type==='moment'&&e.what==='Periode'&&logKey(e.ts)===k);
   if(ex){
     db.entries=db.entries.filter(e=>e.id!==ex.id);
     save(); toast('Wieder entfernt');
@@ -911,7 +906,7 @@ function renderHistory(){
   }
   const byDay={};
   vis.slice().sort((a,b)=>a.ts-b.ts).forEach(e=>{
-    const k=dayKey(new Date(e.ts)); (byDay[k]=byDay[k]||[]).push(e);
+    const k=logKey(e.ts); (byDay[k]=byDay[k]||[]).push(e);
   });
   // Ältester Tag oben, neuester unten — Zeitachse wächst nach unten.
   const days=Object.keys(byDay).sort().reverse().slice(0,14).reverse();
@@ -920,18 +915,21 @@ function renderHistory(){
   days.forEach(k=>{
     const dt=new Date(k+'T12:00'), cd=cycleDay(dt.getTime()), sc=smokeCount(k);
     const meta=[cd?`Zyklustag ${cd}`:null, sc?`${sc}× geraucht`:null].filter(x=>x).join(' · ');
-    const today=k===dayKey(new Date());
+    const today=k===logKey();
     const lbl=today?'Heute':dt.toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'});
     out+=`<div class="dh"><b>${lbl}</b>${meta?`<em>${meta}</em>`:''}</div>`;
 
     const dd=db.daily[k]||{};
+    // Schlaf direkt unter das Datum.
+    if(dd.schlaf!==undefined)
+      out+=`<div class="chips"><span class="tag">Schlaf: ${SLEEP[dd.schlaf]}</span></div>`;
 
     const list=byDay[k];
     let lastMeal=null;
     list.forEach(e=>{
       if(e.type==='entry'&&e.meal){
         // Zeit zwischen zwei Mahlzeiten am selben Tag. Nacht zählt nicht.
-        if(lastMeal && dayKey(new Date(lastMeal))===dayKey(new Date(e.ts))){
+        if(lastMeal && logKey(lastMeal)===logKey(e.ts)){
           const mins=Math.round((e.ts-lastMeal)/6e4);
           const hh=Math.floor(mins/60), mm=mins%60;
           const lbl=hh?(mm?`${hh} Std ${mm} Min`:`${hh} Std`):`${mm} Min`;
@@ -962,8 +960,7 @@ function renderHistory(){
     });
 
     const chips=SYMPTOMS.filter(s=>dd[s.k]!==undefined)
-      .map(s=>`<span class="tag">${s.label}: ${s.steps[dd[s.k]]}</span>`).join('')
-      +(dd.schlaf!==undefined?`<span class="tag">Schlaf: ${SLEEP[dd.schlaf]}</span>`:'');
+      .map(s=>`<span class="tag">${s.label}: ${s.steps[dd[s.k]]}</span>`).join('');
     if(chips) out+=`<div class="chips">${chips}</div>`;
   });
   out+='</div>';
@@ -1108,21 +1105,21 @@ function renderReport(){
   const gapInfo={}, lateStart={};
   for(let i=1;i<meals.length;i++){
     const a=meals[i-1], b=meals[i];
-    const k=dayKey(new Date(a.ts));
-    if(k!==dayKey(new Date(b.ts))) continue;
+    const k=logKey(a.ts);
+    if(k!==logKey(b.ts)) continue;
     const h=(b.ts-a.ts)/36e5;
     if(h>7.5 && (!gapInfo[k]||h>gapInfo[k])) gapInfo[k]=h;
   }
   // Erster Eintrag nach 14 Uhr zählt auch
   const firstOf={};
-  meals.forEach(e=>{const k=dayKey(new Date(e.ts)); if(!firstOf[k]||e.ts<firstOf[k]) firstOf[k]=e.ts});
+  meals.forEach(e=>{const k=logKey(e.ts); if(!firstOf[k]||e.ts<firstOf[k]) firstOf[k]=e.ts});
   Object.keys(firstOf).forEach(k=>{
     const h=new Date(firstOf[k]).getHours()+new Date(firstOf[k]).getMinutes()/60;
     if(h>=14) lateStart[k]=h;
   });
   const flagged=k=>gapInfo[k]||lateStart[k];
   const sosDays={};
-  sos.forEach(e=>{const k=dayKey(new Date(e.ts)); (sosDays[k]=sosDays[k]||[]).push(e.ts)});
+  sos.forEach(e=>{const k=logKey(e.ts); (sosDays[k]=sosDays[k]||[]).push(e.ts)});
 
   /* Kalender */
   let out='<div class="cal">';
@@ -1137,7 +1134,7 @@ function renderReport(){
       flagged(k)?'g':'',
       sosDays[k]?'s':'',
       future?'f':'',
-      k===dayKey(now)?'t':''
+      k===logKey()?'t':''
     ].filter(x=>x).join(' ');
     out+=`<span class="cd ${cls}">${d}</span>`;
   }
@@ -1186,7 +1183,7 @@ function renderReport(){
     extra.push(t+'.');
   }
   if(rau.length){
-    const per={}; rau.forEach(e=>{const k=dayKey(new Date(e.ts)); per[k]=(per[k]||0)+1});
+    const per={}; rau.forEach(e=>{const k=logKey(e.ts); per[k]=(per[k]||0)+1});
     const vals=Object.values(per);
     const avg=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
     extra.push(`Rauchen: ${rau.length}&times; an ${vals.length} Tagen, im Schnitt ${avg} pro Tag.`);
@@ -1242,11 +1239,11 @@ function dl(n,c,t){
   setTimeout(()=>URL.revokeObjectURL(u),1000);
 }
 document.getElementById('exportJson').onclick=()=>
-  dl(`ima-${dayKey(new Date())}.json`,JSON.stringify(db,null,2),'application/json');
+  dl(`ima-${logKey()}.json`,JSON.stringify(db,null,2),'application/json');
 document.getElementById('exportTxt').onclick=()=>{
   const lines=[], byDay={};
   db.entries.slice().sort((a,b)=>a.ts-b.ts).forEach(e=>{
-    const k=dayKey(new Date(e.ts)); (byDay[k]=byDay[k]||[]).push(e);
+    const k=logKey(e.ts); (byDay[k]=byDay[k]||[]).push(e);
   });
   Object.keys(byDay).forEach(k=>{
     const dt=new Date(k+'T12:00'), cd=cycleDay(dt.getTime()), sc=smokeCount(k);
@@ -1271,7 +1268,7 @@ document.getElementById('exportTxt').onclick=()=>{
   if(db.ideas && db.ideas.trim()){
     lines.push('', '', 'IDEEN', '-'.repeat(34), db.ideas.trim());
   }
-  dl(`ima-${dayKey(new Date())}.txt`,lines.join('\n'),'text/plain');
+  dl(`ima-${logKey()}.txt`,lines.join('\n'),'text/plain');
 };
 
 /* Import — JSON von einem anderen Gerät einlesen. Bleibt lokal, kein Server. */

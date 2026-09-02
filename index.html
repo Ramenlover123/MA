@@ -348,6 +348,7 @@
       <div class="acts">
         <button class="pill" id="mealToggle" aria-pressed="false">Essen dabei</button>
         <button class="pill" id="drinkToggle" aria-pressed="false">Getränk</button>
+        <button class="pill" id="meatToggle" aria-pressed="false">mit Fleisch</button>
         <button class="pill" id="timeBtn">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
           <span id="timeLabel">Jetzt</span>
@@ -502,6 +503,7 @@
     <button class="pill" data-etype="meal">Essen</button>
     <button class="pill" data-etype="drink">Getränk</button>
     <button class="pill" data-etype="thought">Gedanke</button>
+    <button class="pill" id="edMeat" aria-pressed="false">mit Fleisch</button>
   </div>
   <div class="edrow">
     <span class="edlbl">Zeit</span>
@@ -518,7 +520,7 @@
 
 <script>
 const KEY='ma.v2';
-const VERSION='v22';
+const VERSION='v24';
 document.getElementById('ver').textContent='ima · '+VERSION;
 const SYMPTOMS=[
   {k:'kopf',   label:'Kopfschmerz',   steps:['keiner','leicht','mittel','stark']},
@@ -530,7 +532,7 @@ const SYMPTOMS=[
 const SLEEP=['gut','okay','schlecht','kaum'];
 const FULL=['leicht','angenehm','voll','übervoll'];
 
-let db=load(), pendingPhoto=null, isMeal=false, isDrink=false;
+let db=load(), pendingPhoto=null, isMeal=false, isDrink=false, isMeat=false;
 
 /* Einmalige Reparatur (darf in einer späteren Version wieder raus):
    Der Abendregler vom 16.07. war versehentlich unter dem 17.07. gespeichert.
@@ -620,11 +622,15 @@ document.getElementById('today').textContent=
 
 const mt=document.getElementById('mealToggle');
 const dt2=document.getElementById('drinkToggle');
-// Essen und Getränk schließen sich gegenseitig aus.
+const meatBtn=document.getElementById('meatToggle');
+// Essen und Getränk schließen sich gegenseitig aus. „mit Fleisch" gehört zum Essen.
 mt.onclick=()=>{ isMeal=!isMeal; if(isMeal){isDrink=false;dt2.setAttribute('aria-pressed','false');}
+  else{isMeat=false;meatBtn.setAttribute('aria-pressed','false');}
   mt.setAttribute('aria-pressed',isMeal) };
-dt2.onclick=()=>{ isDrink=!isDrink; if(isDrink){isMeal=false;mt.setAttribute('aria-pressed','false');}
+dt2.onclick=()=>{ isDrink=!isDrink; if(isDrink){isMeal=false;mt.setAttribute('aria-pressed','false');isMeat=false;meatBtn.setAttribute('aria-pressed','false');}
   dt2.setAttribute('aria-pressed',isDrink) };
+meatBtn.onclick=()=>{ isMeat=!isMeat; if(isMeat){isMeal=true;isDrink=false;mt.setAttribute('aria-pressed','true');dt2.setAttribute('aria-pressed','false');}
+  meatBtn.setAttribute('aria-pressed',isMeat) };
 
 /* Foto */
 document.getElementById('photoBtn').onclick=()=>document.getElementById('photoInput').click();
@@ -697,13 +703,13 @@ document.getElementById('saveBtn').onclick=()=>{
   if(!t && !pendingPhoto){ toast('Nichts drin'); return; }
   const ts=entryTs();
   const id=Date.now();
-  db.entries.push({id,ts,type:'entry',text:t,photo:pendingPhoto,meal:isMeal,drink:isDrink});
+  db.entries.push({id,ts,type:'entry',text:t,photo:pendingPhoto,meal:isMeal,drink:isDrink,meat:isMeat});
   save();
   document.getElementById('text').value='';
   document.getElementById('photoPreview').innerHTML='';
   const wasMeal=isMeal;
-  pendingPhoto=null; isMeal=false; isDrink=false;
-  mt.setAttribute('aria-pressed','false'); dt2.setAttribute('aria-pressed','false');
+  pendingPhoto=null; isMeal=false; isDrink=false; isMeat=false;
+  mt.setAttribute('aria-pressed','false'); dt2.setAttribute('aria-pressed','false'); meatBtn.setAttribute('aria-pressed','false');
   const wasCustom=customTime;
   resetTime();
   toast(wasCustom?'Gespeichert — '+tsLabel(ts):'Gespeichert');
@@ -974,7 +980,8 @@ function renderHistory(){
         dot='d ring'; cls='x ev'; body=esc(e.what);
       } else if(e.meal){
         const fl=e.fullness!==undefined?' · '+FULL[e.fullness]:'';
-        body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'')+`<small>Essen${fl}</small>`;
+        const ft=e.meat?' · mit Fleisch':'';
+        body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'')+`<small>Essen${ft}${fl}</small>`;
       } else if(e.drink){
         dot='d drink';
         body=(e.text?esc(e.text):'')+(e.photo?`<img src="${e.photo}" alt="">`:'')+'<small>Getränk</small>';
@@ -1049,7 +1056,7 @@ function removeEntry(id,el){
 }
 
 /* Eintrag bearbeiten */
-let editId=null, edType=null, edMarked=false;
+let editId=null, edType=null, edMarked=false, edMeatOn=false;
 function openEdit(id){
   const e=db.entries.find(x=>x.id===id);
   if(!e) return;
@@ -1070,6 +1077,8 @@ function openEdit(id){
     text.hidden=true; typeRow.hidden=true; edType=null;
   }
   typeRow.querySelectorAll('[data-etype]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.etype===edType));
+  edMeatOn=!!e.meat;
+  document.getElementById('edMeat').setAttribute('aria-pressed',edMeatOn);
   document.getElementById('edTime').value=hhmm(e.ts);
   edMarked=db.marks.includes(id);
   const mk=document.getElementById('edMark');
@@ -1078,8 +1087,12 @@ function openEdit(id){
 }
 document.querySelectorAll('#edTypeRow [data-etype]').forEach(b=>{
   b.onclick=()=>{ edType=b.dataset.etype;
+    if(edType!=='meal'){edMeatOn=false;document.getElementById('edMeat').setAttribute('aria-pressed','false');}
     document.querySelectorAll('#edTypeRow [data-etype]').forEach(x=>x.setAttribute('aria-pressed',x===b)); };
 });
+document.getElementById('edMeat').onclick=()=>{ edMeatOn=!edMeatOn;
+  if(edMeatOn){edType='meal';document.querySelectorAll('#edTypeRow [data-etype]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.etype==='meal'));}
+  document.getElementById('edMeat').setAttribute('aria-pressed',edMeatOn); };
 document.getElementById('edMark').onclick=()=>{
   edMarked=!edMarked;
   const mk=document.getElementById('edMark');
@@ -1098,6 +1111,7 @@ document.getElementById('edSave').onclick=()=>{
   if(e.type==='entry'){
     e.text=text;
     e.meal=edType==='meal'; e.drink=edType==='drink';
+    if(e.meal && edMeatOn) e.meat=true; else delete e.meat;
     if(!e.meal) delete e.fullness; // Völlegefühl nur bei Essen
   } else if(e.type==='sos'){
     if(text) e.note=text; else delete e.note;
@@ -1195,6 +1209,15 @@ function renderReport(){
     p.push(`An den Tagen, an denen du 今 gedr&uuml;ckt hast, gab es keine lange L&uuml;cke.`);
   }
 
+  if(meals.length){
+    const meat=meals.filter(e=>e.meat);
+    const meatDays=new Set(meat.map(e=>logKey(e.ts))).size;
+    if(meat.length){
+      p.push(`Fleisch war diesen Monat bei ${meat.length} von ${meals.length} Mahlzeiten dabei &mdash; an ${meatDays} ${meatDays===1?'Tag':'Tagen'}.`);
+    } else {
+      p.push(`Keine Mahlzeit diesen Monat ist als &bdquo;mit Fleisch&ldquo; markiert.`);
+    }
+  }
   out+=p.map(t=>`<p>${t}</p>`).join('');
   out+=`<p class="note">Das ist ein Zusammenfall, keine Ursache. Was er bedeutet, wei&szlig;t du besser als dieser Kalender &mdash; und am ehesten jemand, der mit dir draufschaut.</p>`;
 
@@ -1283,7 +1306,7 @@ document.getElementById('exportTxt').onclick=()=>{
       if(e.type==='moment'&&e.what==='Rauchen') return; // Rauchen steht als Tageszähler im Kopf
       if(e.type==='sos') lines.push(`${hhmm(e.ts)}  [Jetzt]${e.note?' — '+e.note:''}${m}`);
       else if(e.type==='moment') lines.push(`${hhmm(e.ts)}  [${e.what}]${m}`);
-      else lines.push(`${hhmm(e.ts)}  ${e.meal?'[Essen] ':e.drink?'[Getränk] ':''}${e.text||''}${e.meal&&e.fullness!==undefined?' ('+FULL[e.fullness]+')':''}${e.photo?' [Foto]':''}${m}`);
+      else lines.push(`${hhmm(e.ts)}  ${e.meal?(e.meat?'[Essen, Fleisch] ':'[Essen] '):e.drink?'[Getränk] ':''}${e.text||''}${e.meal&&e.fullness!==undefined?' ('+FULL[e.fullness]+')':''}${e.photo?' [Foto]':''}${m}`);
     });
     const d=db.daily[k];
     if(d){

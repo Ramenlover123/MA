@@ -141,6 +141,12 @@
     font:inherit;font-size:12.5px;padding:8px 14px;border-radius:20px;cursor:pointer;
     transition:.13s}
   .m:active{background:var(--fill-f)}
+  .m[aria-pressed="true"]{background:var(--fill-on);border-color:var(--edge-on);color:var(--amber)}
+  #periodInfo{margin:10px 0 0}
+  .pday{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:8px 0;border-bottom:1px solid var(--edge-n);font-size:13px;color:var(--on-soft)}
+  .pday em{font-style:normal;color:var(--on-faint);font-size:11.5px;margin-left:6px}
+  .padd{display:flex;gap:8px;align-items:center;margin-top:12px}
 
   /* Ideen-Liste */
   #ideasList{margin-top:14px}
@@ -380,8 +386,9 @@
         <button class="m" data-moment="Migr&auml;ne">Migr&auml;ne</button>
         <button class="m" data-moment="Alkohol">Alkohol</button>
         <button class="m" data-moment="Rauchen">Rauchen</button>
-        <button class="m" id="periodBtn">Periode</button>
+        <button class="m" id="periodBtn" aria-pressed="false">Periode</button>
       </div>
+      <p class="hint" id="periodInfo" hidden></p>
     </div>
 
     <div class="group" id="morningCard" hidden>
@@ -435,6 +442,19 @@
       <textarea id="ideas" placeholder="Neue Idee &#8230;"></textarea>
       <button class="m wide" id="ideasSave">Hinzuf&uuml;gen</button>
       <div id="ideasList"></div>
+    </div>
+
+    <div class="group">
+      <h2>Periode</h2>
+      <p class="hint">Tippe nur am ersten Tag auf &bdquo;Periode&ldquo;. Die folgenden Tage z&auml;hlen automatisch als Periode, danach l&auml;uft nur der Zyklustag weiter bis zur n&auml;chsten Periode.</p>
+      <div class="pday"><span>Standard-Dauer<em id="periodDefault"></em></span>
+        <span class="mr"><button class="m" id="periodLenMinus">&minus;</button><button class="m" id="periodLenPlus">+</button></span></div>
+      <p class="hint" style="margin-top:16px">Einzelne Perioden: Dauer anpassen, entfernen oder vergessene nachtragen.</p>
+      <div id="periodList"></div>
+      <div class="padd">
+        <input type="date" class="timefield" id="periodDate">
+        <button class="m" id="periodAdd">Beginn nachtragen</button>
+      </div>
     </div>
 
     <div class="group">
@@ -520,7 +540,7 @@
 
 <script>
 const KEY='ma.v2';
-const VERSION='v24';
+const VERSION='v26';
 document.getElementById('ver').textContent='ima · '+VERSION;
 const SYMPTOMS=[
   {k:'kopf',   label:'Kopfschmerz',   steps:['keiner','leicht','mittel','stark']},
@@ -579,6 +599,7 @@ function save(){
     db.spaceWarned=false; // wieder Luft: Hinweis darf erneut kommen
     try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
   }
+  if(typeof updatePeriodUI==='function') try{ updatePeriodUI(); }catch(e){}
 }
 const pad=n=>String(n).padStart(2,'0');
 const dayKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -890,42 +911,134 @@ function renderFollowup(){
 }
 renderFollowup();
 
-/* Zyklus — Tag 1 ist der erste Tag einer Periode, nicht jeder markierte Tag */
-function cycleDay(ts){
-  const days=[...new Set(db.entries.filter(e=>e.type==='moment'&&e.what==='Periode')
-    .map(e=>logKey(e.ts)))].sort();
-  // Blockanfänge finden: ein Tag, dem kein direkter Vortag vorausgeht
-  const starts=days.filter((d,i)=>{
-    if(i===0) return true;
-    const prev=new Date(days[i-1]+'T12:00'), cur=new Date(d+'T12:00');
-    return Math.round((cur-prev)/864e5)>1;
-  }).map(d=>new Date(d+'T00:00').getTime());
-  const past=starts.filter(s=>s<=ts).sort((a,b)=>b-a);
-  if(!past.length) return null;
-  const n=Math.floor((ts-past[0])/864e5)+1;
-  return n<=45?n:null;
+/* Zyklus — Tag 1 ist der erste Tag einer Periode, nicht jeder markierte Tag.
+   Die ersten N Zyklustage gelten automatisch als Periode (Standard db.periodLen, Default 4);
+   pro Periode überschreibbar in db.periodOverride[startKey]. Danach zählt nur der Zyklustag weiter. */
+const isPeriod=e=>e.type==='moment'&&e.what==='Periode';
+function periodOn(k){ return db.entries.find(e=>isPeriod(e)&&logKey(e.ts)===k); }
+const defLen=()=>{ const n=+db.periodLen; return n>=1&&n<=14?n:4; };
+function periodStarts(){
+  const days=[...new Set(db.entries.filter(isPeriod).map(e=>logKey(e.ts)))].sort();
+  const out=[];
+  days.forEach((d,i)=>{
+    const gap=i?Math.round((new Date(d+'T12:00')-new Date(days[i-1]+'T12:00'))/864e5):99;
+    if(gap>1) out.push({key:d,marked:1}); else out[out.length-1].marked++;
+  });
+  out.forEach(o=>{
+    const ov=db.periodOverride&&db.periodOverride[o.key];
+    o.len=ov?ov:Math.max(defLen(),o.marked);
+    o.custom=!!ov;
+  });
+  return out;
 }
+function cycleInfo(ts){
+  const past=periodStarts().filter(o=>new Date(o.key+'T00:00').getTime()<=ts);
+  if(!past.length) return null;
+  const o=past[past.length-1];
+  const n=Math.floor((ts-new Date(o.key+'T00:00').getTime())/864e5)+1;
+  if(n>45) return null;
+  return {n, start:o.key, len:o.len, inP:n<=o.len};
+}
+function cycleDay(ts){ const c=cycleInfo(ts); return c?c.n:null; }
+function cdLbl(ts){ const c=cycleInfo(ts); return c?`Zyklustag ${c.n}${c.inP?' · Periode':''}`:''; }
 
 /* Rauchen pro Tag */
 function smokeCount(k){
   return db.entries.filter(e=>e.type==='moment'&&e.what==='Rauchen'&&logKey(e.ts)===k).length;
 }
 
-/* Periode — ein Klick, speichert den Tag */
-document.getElementById('periodBtn').onclick=()=>{
-  const k=logKey();
-  const ex=db.entries.find(e=>e.type==='moment'&&e.what==='Periode'&&logKey(e.ts)===k);
+/* Periode — ein Tipp setzt den Beginn; die Periodentage laufen automatisch.
+   Nochmal tippen am selben Tag nimmt den Eintrag wieder weg. */
+function togglePeriod(){
+  const k=logKey(), ex=periodOn(k);
   if(ex){
     db.entries=db.entries.filter(e=>e.id!==ex.id);
-    save(); toast('Wieder entfernt');
+    save(); toast('Periode heute entfernt');
   } else {
     db.entries.push({id:Date.now(),ts:Date.now(),type:'moment',what:'Periode'});
-    save(); toast('Periode — heute');
+    save(); toast(`Periode beginnt — ${defLen()} Tage automatisch`);
   }
-  // Periode ist tagesbasiert und nutzt die Zeit-Pille nicht — also zurücksetzen,
-  // damit eine gesetzte Zeit nicht heimlich am nächsten Eintrag klebt.
   if(customTime) resetTime();
+}
+document.getElementById('periodBtn').onclick=()=>{
+  const k=logKey(), c=cycleInfo(Date.now());
+  // Schutz: heute nicht markiert, aber eine Periode liegt erst kurz zurück
+  // → das würde einen NEUEN Zyklus (Tag 1) starten. Lieber nachfragen.
+  if(!periodOn(k) && c && c.n>1 && c.n<=21){
+    const d=document.getElementById('confirmDlg');
+    document.getElementById('dlgTitle').textContent='Neue Periode beginnen?';
+    document.getElementById('dlgText').textContent=c.inP
+      ?`Du bist gerade bei Zyklustag ${c.n} — das zählt schon automatisch als Periode (Tag ${c.n} von ${c.len}). Du musst nichts eintragen. Dauer ändern geht unter „Mehr → Periode“. Nur wenn heute eine neue Periode anfängt, startet der Zyklus wieder bei Tag 1.`
+      :`Du bist gerade bei Zyklustag ${c.n}. Die Tage zählen von selbst weiter. Dauer ändern geht unter „Mehr → Periode“. Nur wenn heute eine neue Periode anfängt, startet der Zyklus wieder bei Tag 1.`;
+    document.getElementById('dlgYes').hidden=false;
+    document.getElementById('dlgYes').textContent='Ja, neue Periode';
+    document.getElementById('dlgNo').textContent='Abbrechen';
+    d.classList.remove('soft');
+    d.showModal();
+    document.getElementById('dlgYes').onclick=()=>{ d.close(); togglePeriod(); };
+    return;
+  }
+  togglePeriod();
 };
+function setLen(key,n){
+  db.periodOverride=db.periodOverride||{};
+  n=Math.max(1,Math.min(14,n));
+  if(key===null){ db.periodLen=n; }
+  else if(n===defLen()) delete db.periodOverride[key];
+  else db.periodOverride[key]=n;
+  save();
+}
+function updatePeriodUI(){
+  const b=document.getElementById('periodBtn'), info=document.getElementById('periodInfo');
+  if(!b||!info) return;
+  const c=cycleInfo(Date.now());
+  const marked=!!periodOn(logKey());
+  const inP=c&&c.inP;
+  b.setAttribute('aria-pressed',!!inP);
+  b.textContent=inP?`Periode · Tag ${c.n}/${c.len}`:'Periode';
+  if(c){
+    info.hidden=false;
+    info.textContent=inP
+      ?`Zyklustag ${c.n} · Periode läuft automatisch bis Tag ${c.len}`+(marked?' (heute begonnen — nochmal tippen entfernt es)':'')
+      :`Zyklustag ${c.n} · zählt von selbst weiter bis zur nächsten Periode`;
+  } else info.hidden=true;
+  const dl=document.getElementById('periodDefault');
+  if(dl) dl.textContent=`${defLen()} Tage`;
+  const list=document.getElementById('periodList');
+  if(!list) return;
+  const starts=periodStarts().reverse().slice(0,12);
+  list.innerHTML=starts.length?starts.map(o=>{
+    const lbl=new Date(o.key+'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    return `<div class="pday"><span>${lbl}<em>${o.len} Tage${o.custom?'':' (Standard)'}</em></span>
+      <span class="mr"><button class="m" data-plen="${o.key}" data-d="-1">−</button><button class="m" data-plen="${o.key}" data-d="1">+</button>
+      <button class="m" data-pdel="${o.key}">entfernen</button></span></div>`;
+  }).join(''):'<p class="hint">Noch keine Periode eingetragen.</p>';
+  list.querySelectorAll('[data-plen]').forEach(x=>x.onclick=()=>{
+    const o=periodStarts().find(o=>o.key===x.dataset.plen); if(!o) return;
+    setLen(o.key,o.len+ +x.dataset.d);
+  });
+  list.querySelectorAll('[data-pdel]').forEach(x=>x.onclick=()=>{
+    const o=periodStarts().find(o=>o.key===x.dataset.pdel); if(!o) return;
+    const before=db.entries.slice(), first=new Date(o.key+'T12:00').getTime();
+    // ganzen markierten Block entfernen (Beginn + direkt folgende markierte Tage)
+    const keys=new Set(Array.from({length:o.marked},(_,i)=>logKey(first+i*864e5)));
+    db.entries=db.entries.filter(e=>!(isPeriod(e)&&keys.has(logKey(e.ts))));
+    save(); toast('Periode entfernt',()=>{db.entries=before;save();});
+  });
+}
+document.getElementById('periodLenMinus').onclick=()=>setLen(null,defLen()-1);
+document.getElementById('periodLenPlus').onclick=()=>setLen(null,defLen()+1);
+document.getElementById('periodAdd').onclick=()=>{
+  const v=document.getElementById('periodDate').value;
+  if(!v){ toast('Erst ein Datum wählen'); return; }
+  if(v>dayKey(new Date())){ toast('Datum liegt in der Zukunft'); return; }
+  if(periodOn(v)){ toast('Der Tag ist schon eingetragen'); return; }
+  db.entries.push({id:Date.now(),ts:new Date(v+'T12:00').getTime(),type:'moment',what:'Periode'});
+  save(); toast('Periodenbeginn nachgetragen');
+  document.getElementById('periodDate').value='';
+};
+updatePeriodUI();
+setInterval(updatePeriodUI,60000);
 
 /* Verlauf — Zeitleiste */
 function renderHistory(){
@@ -946,7 +1059,7 @@ function renderHistory(){
   let out='<div class="tl"><div class="spine"></div>';
   days.forEach(k=>{
     const dt=new Date(k+'T12:00'), cd=cycleDay(dt.getTime()), sc=smokeCount(k);
-    const meta=[cd?`Zyklustag ${cd}`:null, sc?`${sc}× geraucht`:null].filter(x=>x).join(' · ');
+    const meta=[cd?cdLbl(dt.getTime()):null, sc?`${sc}× geraucht`:null].filter(x=>x).join(' · ');
     // "Heute" nach echtem Datum. Ein Tagesblock trägt den Log-Tag-Schlüssel:
     // die Nachtstunden (0–5) landen im Vortagsblock, der dann auch so heißt.
     const today=k===dayKey(new Date());
@@ -1203,7 +1316,7 @@ function renderReport(){
       if(gapInfo[k]) why+=`<span><i class="lg"></i>${Math.round(gapInfo[k])} Stunden ohne Mahlzeit</span>`;
       return `<div class="pr"><b>${wd}</b>${why}
         <span><i class="ls"></i>今 um ${times}</span>
-        ${cd?`<em>Zyklustag ${cd}</em>`:''}</div>`;
+        ${cd?`<em>${cdLbl(dt.getTime())}</em>`:''}</div>`;
     }).join('')+`</div>`;
   } else {
     p.push(`An den Tagen, an denen du 今 gedr&uuml;ckt hast, gab es keine lange L&uuml;cke.`);
@@ -1298,7 +1411,7 @@ document.getElementById('exportTxt').onclick=()=>{
   });
   Object.keys(byDay).forEach(k=>{
     const dt=new Date(k+'T12:00'), cd=cycleDay(dt.getTime()), sc=smokeCount(k);
-    const meta=[cd?`Zyklustag ${cd}`:null, sc?`${sc}× geraucht`:null].filter(x=>x).join(', ');
+    const meta=[cd?cdLbl(dt.getTime()):null, sc?`${sc}× geraucht`:null].filter(x=>x).join(', ');
     lines.push('',dt.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
       +(meta?`  (${meta})`:''),'-'.repeat(34));
     byDay[k].forEach(e=>{
